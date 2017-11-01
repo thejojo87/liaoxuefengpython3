@@ -691,3 +691,137 @@ if __name__ == "__main__":
         sys.exit(0)
         # loop.run_forever()
 ```
+
+
+## Day 4 - 编写Model
+
+分为两个部分，
+编写model和初始化数据库表
+
+### 编写model
+
+在编写ORM时，给一个Field增加一个default参数可以让ORM自己填入缺省值，非常方便。并且，缺省值可以作为函数对象传入，在调用save()时自动计算。
+
+例如，主键id的缺省值是函数next_id，创建时间created_at的缺省值是函数time.time，可以自动设置当前日期和时间。
+
+日期和时间用float类型存储在数据库中，而不是datetime类型，这么做的好处是不必关心数据库的时区以及时区转换问题，排序非常简单，显示的时候，只需要做一个float到str的转换，也非常容易。
+
+### 初始化数据库表
+
+这里涉及到数据库的操作了。
+
+[数据库语句说明看这里](https://www.liaoxuefeng.com/discuss/001409195742008d822b26cf3de46aea14f2b7378a1ba91000/0014750354404744cfefbf0022a43f285ea03defffdce37000)\
+
+难点在于这一句
+
+```sql
+# schema.sql
+
+grant select, insert, update, delete on awesome.* to 'www-data'@'localhost' identified by 'www-data';
+```
+awesome是什么？是本地数据库名称（db）
+第一个www-data为数据库用户名(user),
+localhost为主机名(host),
+第二个www-data为www-data用户的密码(password)
+schema.sql的作用为使用脚本帮你在本地的mysql上自动创建名为awesome的数据库。
+
+```python
+# 与上面参数相对应的为：
+
+# orm_test.py(测试orm代码，建议新建*.py文件用于测试，最好不要放在app中)
+
+async def test():
+    await orm.create_pool(user='www-data', password='www-data', database='awesome')
+```
+ 
+ 我先试一下完全不修改按照廖雪峰的来写入。
+ 
+ 写入方法就是pycharm里，直接把sql文件拖入localhost就可以了
+ 
+ ![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171101/144714556.png)
+ 结果是 被拒绝了
+ 
+ ![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171101/144626398.png)
+ 
+ 仔细思考，感觉会不会是创建用户池的时候user用了个root，会不会是这个不对？
+ 
+ 然后sql语句改成
+ 
+ ```python
+ grant select, insert, update, delete on awesome.* to 'root'@'localhost' identified by 'password';
+ ```
+ 
+ 就成功了
+ 
+ ![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171101/145956156.png)
+ 多了一个awesome是数据库表
+ 
+ ![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171101/150110491.png)
+ 
+ ![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171101/150127073.png)
+ 
+ pycharm里，点击localhost下面的Schemas，就可以切换表。
+ 当中选择awesome就可以看到了。
+ 
+ 但是当我选择test代码的时候跳出来说，
+ pymysql.err.ProgrammingError: (1146, "Table 'awesome.user' doesn't exist")
+ 确实表里只有users并不是user
+ 那么我不搜索，不用find，只save可以吗？
+ 进入save
+返回行数： None
+WARNING:root:failed to insert record: affected rows: None
+
+问题在于，models文件里，User类里，table名字，我写的是users
+但是 这里是INFO:root:found model: User (table: User)
+
+哪里不对呢？
+
+数据库表里是users 表。
+这个是mysql语句来生成的。
+
+models里，User类的__table__ 也依然是users
+
+我如果修改这个，感觉什么也没有发生
+Info里modelUser里的table 依然是User
+而写入操作的时候pymysql.err.ProgrammingError: (1146, "Table 'awesome.user' doesn't exist")
+
+先解决model table User的问题吧。
+
+首先程序新建了一个User类，继承了Model
+问题就在这里，我在models.py文件里建造了User类，设置了table
+但是我并没有在orm的测试代码里引入，而是直接又新建了一个User类。
+所以我决定新建一个测试脚本文件。
+
+### 编写测试脚本文件
+
+第一步就是要引入orm和models
+我发现第一步我就遇到了难题
+
+import orm写着 no module named orm
+实际用的时候发现其实没问题
+
+当我把www文件夹，mark成source文件夹之后警告就停止了
+
+下一步，我从models文件引入User
+ImportError: attempted relative import with no known parent package
+原因是我在models文件里，引入orm的函数的时候，使用了相对地址
+
+```python
+from .orm import Model, TextField, BoolField, IntegerField, FloatField, StringField
+```
+
+而相对地址如果再次被引用就会出错，我把.去掉就没问题了
+但是我测试的数据，我试着生成，然后保存。
+发现无法插入数据。
+运行完全没问题呀。
+
+第一句是进入save
+然后是execute，我发现我上面写错了，漏了两行。
+
+之后又出现了新的问题，
+"Column 'admin' cannot be null"
+
+admin是bool类型，我并没有设置default。
+所以我添加了，然后就输入成功了。
+
+

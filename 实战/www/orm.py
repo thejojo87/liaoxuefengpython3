@@ -26,7 +26,7 @@ async def create_pool(loop, **kw):
         # 连接的基本属性设置
         host=kw.get('host', 'localhost'),  # 数据库服务器位置，默认本地
         port=kw.get('port', 3306),  # 端口
-        user=kw['root'],  # 用户名
+        user=kw['user'],  # 用户名
         password=kw['password'],  # 密码
         db=kw['db'],  # 数据库名
         charset=kw.get('charset', 'utf8'),
@@ -71,7 +71,6 @@ async def select(sql, args=None, size=None):
         logging.info('rows returned:%s' % len(rs))
         return rs
 
-
 # execute- 封装INSERT, UPDATE, DELETE
 # 语句操作参数一样，所以定义一个通用的执行函数
 # 返回操作影响的行号
@@ -94,7 +93,8 @@ async def execute(sql, args, autocommit=True):
         except BaseException as e:
             if not autocommit:
                 await conn.rollback()
-
+            raise
+        return affected
 
 # 该方法用来将其占位符拼接起来成'?,?,?'的形式，num表示为参数的个数
 def create_args_string(num):
@@ -350,39 +350,3 @@ class Model(dict, metaclass=ModelMetaclass):
         print('删除成功！')
         if rows != 1:
             logging.warn('failed to remove by primary key: affected rows: %s' % rows)
-
-
-# 这是测试代码
-if __name__ == "__main__":
-
-    class User(Model):
-        id = IntegerField('id', primary_key=True)
-        name = StringField('username')
-        email = StringField('267@qq.com')
-        password = StringField('password')
-
-
-    async def test():
-        # 这就是连接代码，生成pool就会自动连接，但是首先要生成数据库才行
-        await create_pool(loop=loop, host='localhost', port=3306,
-                          root='root', password='password', db='test1')
-        print('test')
-        user = User(id=8, name='sly', email='slysly759@gmail.com', password='fuckblog')
-        await user.save()
-        r = await User.find('11')
-        print(r)
-        r = await User.find_all()
-        print(1, r)
-        r = await User.find_all(id='12')
-        print(2, r)
-        await destroy_pool()
-
-
-    # 获取EventLoop队列：
-    loop = asyncio.get_event_loop()
-    # 执行协程队列：把这个队列扔进去，因为init需要这个loop
-    loop.run_until_complete(test())
-    loop.close()
-    if loop.is_closed():
-        sys.exit(0)
-        # loop.run_forever()
