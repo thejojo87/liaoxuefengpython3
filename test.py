@@ -1,18 +1,23 @@
 import time
 import asyncio
 from aiohttp import web
-now = lambda: time.time()
-
-#
-# async def do_some_work(x):
-#     print('Waiting: ', x)
 
 
-start = now()
 
-# coroutine = do_some_work(2)
-#
-# loop = asyncio.get_event_loop()
-# loop.run_until_complete(coroutine)
+class Hello(object):
+    def __init__(self):
+        self.xxx = 4
+        print(self.xxx)
+    print('ccc')
+    pass
 
-print('TIME: ', now() - start)
+    def test(self):
+        print('ddd')
+        print(self.xxx)
+# 二生三：创建实列
+# hello = Hello()
+
+# 三生万物：调用实例方法
+# print(hello)
+
+Hello.test(4)

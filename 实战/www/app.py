@@ -2,14 +2,18 @@
 # -*- coding: utf-8 -*-
 # Created by thejojo at 2017/10/29
 
-import logging; logging.basicConfig(level=logging.INFO)
+import logging;
+
+logging.basicConfig(level=logging.INFO)
 
 import asyncio
 from aiohttp import web
 
+
 def index(request):
     # 这里后面如果不加content——type那么就直接有一个下载界面。
     return web.Response(body=b'<h1>Awesome</h1>', content_type='text/html', charset='UTF-8')
+
 
 # init函数只运行一次，然后每次网络请求的时候另外一个协程调用create——server
 async def init(loop):
@@ -21,6 +25,7 @@ async def init(loop):
     srv = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
     logging.info('server 开始于 127.0.0.1')
     return srv
+
 
 # 获取EventLoop队列：
 loop = asyncio.get_event_loop()
