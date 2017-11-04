@@ -12,4 +12,8 @@ from aiohttp import web
 @get('/')
 async def index(request):
     users = await User.findAll()
-    return web.Response(body=b'<h1>Awesome users</h1>', content_type='text/html', charset='UTF-8')
+    # return web.Response(body=b'<h1>Awesome users</h1>', content_type='text/html', charset='UTF-8')
+    return {
+        '__template__': 'test.html',
+        'users': users
+    }

@@ -1513,3 +1513,49 @@ loop.run_until_complete(orm.create_pool(loop, user=configs.db.user, password=con
 
 不过我不明白，这个toDict函数什么时候会被调用呢？
 
+
+## Day 7 - 编写MVC
+
+mvc是model，view，controller
+model，当然是models.py
+view，就template文件里的模板 用jinja2 写
+controller就是handlers里的handler函数
+
+这次写一个test.html
+
+为了这个需要修改handler函数
+
+```python
+@get('/')
+async def index(request):
+    users = await User.findAll()
+    # return web.Response(body=b'<h1>Awesome users</h1>', content_type='text/html', charset='UTF-8')
+    return {
+        '__template__': 'test.html',
+        'users': users
+    }
+```
+
+不过我啥时候指定过templates文件夹来着？
+是在app.py里initjinja函数里指定的。
+
+
+```html
+    <h1>All ysers</h1>
+    {% for u in users%}
+    <p>{{ u.name }} / {{ u.email }}</p>
+    {% endfor%}
+```
+
+## Day 8 - 构建前端
+
+这里使用了uikit来构建前端
+不过我之前用过bootstrap，还用过vuejs。
+我在想我有必要还用uikit吗？
+
+
+
+
+
+
+
