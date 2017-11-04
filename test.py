@@ -3,21 +3,15 @@ import asyncio
 from aiohttp import web
 
 
+class Student(object):
+    def __init__(self, name):
+        self.name = name
+        print(self.name)
 
-class Hello(object):
-    def __init__(self):
-        self.xxx = 4
-        print(self.xxx)
-    print('ccc')
-    pass
+    def __call__(self):
+        print('My name is %s.' % self.name)
 
-    def test(self):
-        print('ddd')
-        print(self.xxx)
-# 二生三：创建实列
-# hello = Hello()
 
-# 三生万物：调用实例方法
-# print(hello)
+# a = Student('99')
+Student('00')()
 
-Hello.test(4)

@@ -2,6 +2,13 @@
 
 [github地址](https://github.com/thejojo87/liaoxuefengpython3)
 
+## 参考资料
+
+[从一个大神复制过来](https://github.com/thejojo87/mblog)
+[有人参考上面的又写了一遍](https://github.com/songluyi/FuckBlog/blob/9feb9c0ec03ed6247457fcddc302a872a56a5d59/FuckBlog/www/base.py)
+[流程总结](https://hk4fun.github.io/2017/10/09/%E5%BB%96%E9%9B%AA%E5%B3%B0web%E5%AE%9E%E6%88%98%E6%80%BB%E7%BB%93/)
+[最详细的github](https://github.com/Hk4Fun/awesome-python3-webapp/blob/master/www/config.py)
+
 ## Day 1 -  搭建开发环境
 
 ### python版本
@@ -824,4 +831,685 @@ from .orm import Model, TextField, BoolField, IntegerField, FloatField, StringFi
 admin是bool类型，我并没有设置default。
 所以我添加了，然后就输入成功了。
 
+
+## Day 5 - 编写Web框架
+
+### 思路
+[大神的说明文章](http://www.qiangtaoli.com/bootstrap/blog/001466339384240fec2e91483ac41bdb5352c1034be03e9000)
+
+现在写的这个博客是采用MVC框架，也就是 Model-View-Controller （模型-视图-控制器），day5的主要任务是建立View（网页）和Controller（路由）之间的桥梁。具体的方法就是通过request（请求）来达到交互的目的。web框架会把Controller的指令构造成一个request发送给View，然后动态生成前端面页；用户会在前端页面进行某些操作，然后通过request传送回后端，在传回后端之前会经过对request的解析，转变成后端可以处理的事务。day5就是要对这些request进行标准化处理的实现。
+
+aiohttp是一个较底层的框架，当有HTTP请求进入，aiohttp会生成一个request对象，经处理后返回一个Response对象。
+但是，中间的处理过程需要我们自行去完成，所以我们要在aiohttp基础上自己封装一个框架。
+
+#### 如果只用aiohttp编写试图函数会如何？
+1. 编写一个async/await装饰的函数。进入request
+2. 然后从request里获取需要的参数
+3. 自行构造返回的Response对象
+
+我们就是要把这个封装起来。
+该怎么做呢？
+1、通过get/post装饰器、HandlerRequest类来封装视图函数（URL处理函数），让他能正确调用HTTP请求中附带的参数。 
+2、通过middlerware处理视图函数返回的参数，构造Response对象以此返回HTTP响应。
+
+### 一共修改了两个文件app.py 和coroweb.py
+
+### coroweb.py文件
+
+#### 1.get装饰器
+
+我们想要达到的效果如下：
+
+```python
+处理带参数的URL/blog/{id}可以这么写：
+
+@get('/blog/{id}')
+def get_blog(id):
+    pass
+
+处理query_string参数可以通过关键字参数**kw或者命名关键字参数接收：
+
+@get('/api/comments')
+def api_comments(*, page='1'):
+    pass
+
+```
+
+这就是个装饰器，获取的参数是path而不是func
+
+-问题一： path这个参数该怎么使用？
+
+答案： 因为path并不是func，所以需要一层返回decorator的高阶函数。
+如果不是因为在这个原因，那么get下面直接是wrapper函数了。
+所以为了函数名字正常化，所以使用了@functools.wraps(func)。
+
+wrapper获取path，存在返回的函数的内置参数里。
+
+假设调用这个get装饰器的函数名为now
+
+```python
+@get(path)
+def now():
+    pass
+```
+
+这个等于now = get(path)(now)
+这里首先执行 get(path) 返回的是decorator函数。
+然后再调用decorator(func) 也就是now,
+最终返回的是wrapper函数。
+
+说明和案例看[廖雪峰-装饰器](https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/0014318435599930270c0381a3b44db991cd6d858064ac0000)
+
+-问题二：functools.wraps这个偏函数有什么作用？
+
+因为get需要path参数，所以不能直接用func做参数。
+所以多加了一层高阶函数，返回wrapper函数。
+因此会改变__name__等属性，加了这一句，这些属性会自动更改。
+
+-问题三： method和route这个是私有变量吧？能正常用吗？
+
+再看看吧。
+
+```python
+def get(path):
+    '''
+    Define decorator @get('/path')
+    '''
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kw):
+            return func(*args, **kw)
+        wrapper.__method__ = 'GET'
+        wrapper.__route__ = path
+        return wrapper
+    return decorator
+```
+
+#### 2.post装饰器
+和上面get装饰器代码一模一样，除了method 换成了post。
+这个非常不科学。
+
+互联网有着get post put 和delete。
+如果这么说是不是一模一样的代码写4次？
+
+#### 3.oop的get/post/put/delete装饰器方法-用了偏函数
+
+```python
+    # 建立视图函数装饰器，用来存储、附带URL信息  
+    def Handler_decorator(path, *, method):  
+        def decorator(func):  
+            @functools.wraps(func)  
+            def warpper(*args, **kw):  
+                return func(*args, **kw)          
+            warpper.__route__ = path  
+            warpper.__method__ = method  
+            return warpper  
+        return decorator  
+    # 偏函数。GET POST 方法的路由装饰器  
+    get = functools.partial(Handler_decorator, method = 'GET')  
+    post = functools.partial(Handler_decorator, method = 'POST')  
+```
+
+不过我看到网友的代码，Handle_decorator直接用了request这个函数名。
+没问题吗？有点疑惑。
+
+#### 4.inspect模块，解析视图函数的参数
+这是从url获取参数，等用在request参数里
+
+我看到这些重复的太多了吧。
+有没有办法能简化？
+基本上除了参数和条件，剩下代码都一模一样。
+但是这个具体怎么变化呢？
+毫无头绪，需要实际案例来分析一下
+
+inspect模块是什么呢？
+
+[inspect教程](http://blog.csdn.net/weixin_35955795/article/details/53053762)
+
+具体怎么使用的呢？
+
+```python
+# ---------------------------- 使用inspect模块中的signature方法来获取函数的参数，实现一些复用功能--
+# 关于inspect.Parameter 的  kind 类型有5种：
+# POSITIONAL_ONLY		只能是位置参数
+# POSITIONAL_OR_KEYWORD	可以是位置参数也可以是关键字参数
+# VAR_POSITIONAL			相当于是 *args
+# KEYWORD_ONLY			关键字参数且提供了key，相当于是 *,key
+# VAR_KEYWORD			相当于是 **kw
+
+
+def get_required_kw_args(fn):
+
+    # 如果url处理函数需要传入关键字参数，且默认是空得话，获取这个key
+    args = []
+    params = inspect.signature(fn).parameters
+    for name, param in params.items():
+        # param.default == inspect.Parameter.empty这一句表示参数的默认值要为空
+        if param.kind == inspect.Parameter.KEYWORD_ONLY and param.default == inspect.Parameter.empty:
+            args.append(name)
+    return tuple(args)
+```
+
+这里的fn是什么？函数？变量？
+get_required_kw_args这个是在RequestHandler函数的init里用的。
+RequestHandler函数是在add_route(app, fn)这个函数里使用的。
+也就是说，这里的fn就是add_route的fn
+而这个又是在add_routes(app, module_name)函数使用的
+而这里fn就是fn = getattr(mod, attr) 也就是说遍历mod的方法和属性。
+下面只取方法（__name__）之类的
+mod是module_name名字截取的。
+还是没看懂fn到底是什么样的数据。
+应该是函数带着参数块
+
+inspect说明
+a函数，带着一些参数。
+然后inspect.signature(fn)就变成了参数块如（a, b=0, *c, d, e=1, **f）
+然后把这个.paramerters就变成了 orderedDict 字典来储存参数块
+name是字典的key，param是字典的值
+param.kind就是 上面的5种属性值。
+
+到现在为止知道了 fn是一个参数。
+
+#### 4.参数解析函数们
+
+廖雪峰的源代码有着5个函数。
+都是输入fn，获取fn的函数，然后分为好几个类型。
+就是重复太多了。
+我有两个选择，一个是按照源代码写。
+另一个是[重构](https://github.com/songluyi/FuckBlog/blob/9feb9c0ec03ed6247457fcddc302a872a56a5d59/FuckBlog/www/base.py)
+
+一共是5个函数来判断。
+
+1. 有关键字参数，并且默认为空,那么获取这个key
+2. 有关键字（感觉1包括在2里了），那么获取这个key
+3. 是否有指定的key，相当于 *,key
+4. 是否有关键字参数, 相当于**kw
+5. 判断是否存在一个参数叫做request，并且该参数要在其他普通的位置参数之后，
+即属于*kw或者**kw或者*或者*args之后的参数
+
+廖大的意思是想把URL参数和GET、POST方法得到的参数彻底分离。
+
+    GET、POST方法的参数必需是KEYWORD_ONLY
+    URL参数是POSITIONAL_OR_KEYWORD
+    REQUEST参数要位于最后一个POSITIONAL_OR_KEYWORD之后的任何地方
+
+[这个讨论蛮有意思](https://www.liaoxuefeng.com/discuss/001409195742008d822b26cf3de46aea14f2b7378a1ba91000/00147377613597389bfa5b0200f49beaca0a9b1947a0565000)
+
+这里最后一个函数有一个continue
+
+```python
+    found = False
+    for name, param in params.items():
+        if name == 'request':
+            found = True
+            continue
+        # 只能是位置参数POSITIONAL_ONLY
+        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and param.kind != inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
+            raise ValueError('request parameter must be the last named parameter in function: %s%s' % (
+                fn.__name__, str(sig)))
+return found
+```
+
+continue是跳出这次循环的意思。
+就是不进行下面的判断，这次直接退出。
+然后继续判断下一个参数
+
+
+#### 5.RequestHandle-本质就是中间件
+上面视图函数装饰器只不过是提取了path。
+但是我们需要从一个request请求，提取更多参数，
+用类来处理并且对视图函数封装。
+视图函数指的是URL处理函数。
+
+使用者编写的URL处理函数不一定是一个coroutine，因此我们用RequestHandler()来封装一个URL处理函数。
+RequestHandler是一个类，分析视图函数所需的参数，再从request对象中将参数提取，调用视图函数（URL处理函数），并返回web.Response对象。
+由于其定义了__call__()方法，其实例对象可以看作函数。
+用这样一个RequestHandler类，就能处理各类request向对应视图函数发起的请求了。
+
+- call函数是什么呢？
+
+call就是不用实例的类的()的重载
+
+[说明一](http://blog.csdn.net/networm3/article/details/8645185)
+[说明二](http://blog.csdn.net/rubbishcan/article/details/12402341)
+
+为什么用在这里？
+wsgi里，wsgi会加载一个app，要接受两个参数。
+app可以用函数来定义。
+也可以用类中的call方法来定义。
+
+```python
+    class App():  
+        def __call__(self, environ, start_response):  
+            req = Request(environ)  
+            resp = Response('Hello world')  
+            return resp(environ, start_response)  
+```
+
+我还是不太懂什么叫wsgi，为什么用call，有什么好处
+
+[这个教程很强大-wsgi](http://www.oschina.net/news/76907/python-web-basic-of-wsgi)
+
+wsgi是一切django，flask等的基础。
+所以一个WSGI应用最重要的部分是什么呢？
+
+    一个WSGI应用是Python可调用的，就像一个函数，一个类，或者一个有__call__方法的类实例
+
+    可调用的应用程序必须接受两个参数：environ，一个包含必要数据的Python字典，start_fn，它自己是可调用的。
+
+    应用程序必须能调用start_fn和两个参数：状态码（字符串），和一个头部以两个元组表述的列表。
+
+    应用程序返回一个在返回体里包含bytes的方便的可迭代对象，流式的部分——例如，一个个只包含“Hello，World！”字符串的列表。（如果app是一个类的话，可以在__iter__方法里完成）
+    
+    def app(environ, start_fn):
+    start_fn('200 OK', [('Content-Type', 'text/plain')])    
+    return ["Hello World!\n"]
+
+call的好处在于，不用实例化。
+只要在下面 就可以了。
+
+```python
+class Application(object):
+    def __call__(self, environ, start_fn):
+        start_fn('200 OK', [('Content-Type', 'text/plain')])        
+        yield "Hello World!\n"
+app = Application()
+```
+
+为什么要有RequestHandle函数？
+
+中间件是一种方便扩展WSGI应用功能性的方法。因为你只需提供一个可调用的对象，你可以任意把它包裹在其他函数里。
+
+例如，假设我们想检测一下environ里面的内容。我们可以轻易地创建一个中间件来完成，如下所示：
+
+```python
+import pprint
+def handler(environ, start_fn):
+    start_fn('200 OK', [('Content-Type', 'text/plain')])    
+    return ["Hello World!\n"]
+def log_environ(handler):
+    def _inner(environ, start_fn):
+        pprint.pprint(environ)        
+        return handler(environ, start_fn)    
+    return _inner
+
+app = log_environ(handler)
+```
+
+再来个路由的例子
+
+```python
+routes = {    
+    '/': home_handler,    
+    '/about': about_handler,
+}
+class Application(object):
+    def __init__(self, routes):
+        self.routes = routes
+            
+    def not_found(self, environ, start_fn):
+        start_fn('404 Not Found', [('Content-Type', 'text/plain')])        
+        return ['404 Not Found']    
+    def __call__(self, environ, start_fn):
+        handler = self.routes.get(environ.get('PATH_INFO')) or self.not_found        
+        return handler(environ, start_fn)
+```
+
+- 第一部分是init
+init了app，fn，还有上面5个判断函数。
+
+- 第二部分是call
+call接收request参数。
+request参数是aiohttp的一个类或者实例。
+request会传递给add_route
+
+有点不太明白。
+RequestHandler接收app和fn
+用fn来判断是否存在**kw里的key什么的。5个判断。
+但是RequestHandler的call函数的参数是request。
+这两个有什么联系吗？
+
+首先在app.py里，生成一个app对象。
+app对象调用response_factory这个中间件。
+这里调用了handle，也就是RequestHandler的call函数，这时候call函数就收到了request。
+
+
+
+然后把这个发送到coroweb文件的add_routers 和add_static对象里。
+这里获得了app和fn
+
+这两条线怎么联系在一起的？
+
+懂了。
+使用call的时候一定是首先运行init的。
+
+request参数可以被省略掉。
+[看这个解释](https://www.liaoxuefeng.com/discuss/001409195742008d822b26cf3de46aea14f2b7378a1ba91000/001462893855750f848630bb19c43c582fdff90f58cbee0000)
+
+至于为什么能被省略要看官方文档
+或者 [这个文档说明](http://www.cnblogs.com/ameile/p/5589808.html)
+
+这里就是说，app.router.add_route('GET', '/', index)
+这里的index已经就认定为handle函数了。等于index(request)
+所以根本不用传参数，只要index定义的时候写上request就可以用了。
+
+就像day2的时候，index根本没发送request参数。
+
+然后在这里的话，下面的add_route函数是这样写的。
+
+app.router.add_route(method, path, RequestHandler(app, fn))
+
+而RequestHandler(app, fn) 等于 RequestHandler(app, fn)(request)
+而最终会在app.py里的response_factory(app, handler)里的r = await handler(request)
+调用，等于 RequestHandler(app, fn)(request)
+这时候app有了，fn有了，request也有了。
+
+首先进行判断有没有kw 关键字
+
+有关键字的时候判断request的方法是post还是get
+post复杂一点，查看字段类型。
+get简单直接后面跟了string来请求服务器上的资源。解析后保存到kw
+
+get的时候使用urllib import parse，利用这个来
+
+这后面的逻辑，如果没有实际案例，我觉得很难理解都是判断了什么。
+所以我先跳过去了。
+我都不知道传进来了什么（传进来的是app，和fn），又传出去了什么。
+只知道这个接受request，然后转换格式给服务器。
+
+需要注意的是这里有个APIError，需要调用。
+这个得新建一个apis文件，从这里调用。
+这个会在Day10讲到。所以这个先跳过去。
+
+
+#### 6. add_route(app, fn)函数
+
+add_route函数是做什么的？
+
+1. 注册一个URL处理函数-最后一行
+2. 验证函数是否有包含URL的响应方法与路径信息
+3. 将函数变为协程
+
+这个函数输入什么参数？
+app，fn 
+fn就是（参数的字典块吧），一个方法，包括参数，包括方法的实现
+app应该是aiohttp的实例。
+
+第一行和第二行接收fn里method和route的值，后面是None，
+getattr可以放三个参数，第一个参数是obj，第二个是method，第三个是默认值。
+这里的method是get或者post字段
+
+```python
+getattr(object, name[, default]) -> value
+
+Get a named attribute from an object; getattr(x, 'y') is equivalent to x.y.
+When a default argument is given, it is returned when the attribute doesn't
+exist; without it, an exception is raised in that case.
+```
+
+如果method和route都为空，那么跳出警告。
+
+下面判断fn是不是协程，并且判断是不是一个生成器。
+如果不是的话，修饰为协程。
+
+下面是logging
+再下面正式注册为RequestHandler的call函数，顺便把app和fn传进去。
+用的是aiohttp的api，path和method，然后处理函数。
+
+#### 7. add_routes(app, module_name)函数
+
+这个函数目的是
+因为add_route()注册函数会调用很多次，所以想做批量注册。
+输入app，和函数所在文件的路径，那么add_routes筛选文件内所有符合注册条件的函数。
+
+首先判断传入的module_name参数里又没有.号
+rfind()返回字符串最后一次出现的位置，如果没有匹配项则返回-1
+如果没有匹配项目，那么传入的是module名字
+如果没有匹配项目，那么使用__import__函数
+import函数可以看这里[import函数](http://kaimingwan.com/post/python/python-de-nei-zhi-han-shu-__import__)
+这一段涉及到global和locals，涉及到命名空间。
+[import函数又一文章](http://python.jobbole.com/87492/)
+需要仔细分析。
+
+globals 和locals都是默认值。
+
+但是当n不等于-1的时候，这里把廖雪峰的源代码改了。
+
+我先姑且按照他的方案走，试一下。
+最后要自己走一遍流程。
+
+下一步用dir(mod)的方式返回实例属性和构造类以及所有基类的属性列表。
+
+然后获取这个模块的方法，如果存在method和route，那么就用add_route函数注册。
+
+add_route函数设置这个route和handle函数。
+
+什么时候具体调用呢？貌似继续写才能知道。
+
+#### 8.add_static(app)函数
+
+app是aiohttp的实例。
+没什么好说的，就是设置app的static文件在哪里找罢了。
+获取当前path，然后用api设置。
+
+要在目录里新建一个static文件夹
+
+到这里coroweb.py就完成了。
+下一步就是要修改app.py文件了
+
+### app.py文件
+
+#### 1.app.py里jinja2模板和自注册的支持
+
+把这些放到app.py真的合适吗？
+
+jinja2是什么？
+就是模板语言，写html的时候可以像Django模板一样能写得简单点。
+
+Environment是核心类。
+用这个实例保存配置，对象，文件路径来加载模板。
+初始化就是创建这个实例，然后传进参数过去，
+然后用get_template()加载模板，
+最后用render()方法来渲染模板。
+
+更详细的可以看[这里](http://blog.csdn.net/qq_38801354/article/details/77150637)
+
+没什么可说的就是init jinja2函数，并且初始化了一个datetime_filter
+这个应该在Day8
+
+#### 2.编写中间件
+中间件是什么？
+是aiohttp中的一个拦截器。
+首先初始化一个app。
+然后app，可以经过中间件，传入add_route函数，用这个来生成路由，这里由RequestHandler函数
+来处理，转化成函数。
+
+至于输出的时候，同样，经过middleware处理，转化成web.response对象。
+
+一轮过后，如何将函数返回值转化为web.response对象呢？
+这里引入aiohttp框架的web.Application()中的middleware参数。
+middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理。一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回。middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方。
+在我看来，middleware的感觉有点像装饰器，这与上面编写的RequestHandler有点类似。
+有官方文档可以知道，当创建web.appliction的时候，可以设置middleware参数，而middleware的设置是通过创建一些middleware factory(协程函数)。这些middleware factory接受一个app实例，一个handler两个参数，并返回一个新的handler。
+
+#### 4.记录URL日志的logger作为中间件
+
+```python
+async def logger_factory(app,handler):#协程，两个参数
+    async def logger_middleware(request):#协程，request作为参数
+        logging.info('Request: %s %s'%(request.method,request.path))#日志
+        return await handler(request)#返回
+    return logger_middleware
+```
+
+代码本身没难度，相当简单易懂。
+难点在于框架运行逻辑。
+
+这个factory什么时候运行？在哪里被调用？
+是自动？还是每次被人用？就是全自动。
+handler函数，貌似还没规定。这个一会要怎么传？
+下面注册的时候就规定好了。aiohttp的特性。
+
+app.router.add_route('GET', '/index', index)
+ 
+这样一来，我们添加路由的时候，GET，/index，index 
+这三个信息最终会被封装成一个 ResourceRoute 类型的对象，然后再经过层层封装，
+最终会变成 app 对象内部的一个属性，
+你多次调用这个方法添加其他的路由就会有多个 ResourceRoute 对象封装进 app.
+
+logger factory的handle并不是固定的。
+每次一个app router 实例化，封装成app对象内部的一个属性的时候，
+也就是增加一个router的时候。
+logger factory就会赋值，router的handler函数，传进去，又传出来。
+
+什么时候运行？
+就是发出一个request请求的时候。
+然后发送到handlers.py里的各个相应的url函数进行处理，比如说index函数。
+因为这就是注册router的参数。
+
+然后handler函数返回一个response，这个会被RequestHandle先处理（hook），
+主要是从url函数中解析需要接收的参数，
+进而从request中获取必要的参数构造成字典以**kw传给该url函数并调用。
+最后在应答返回数据前会被response_factory所拦截，进行模板的渲染，
+将request handler的返回值根据返回的类型转换为web.Response对象，吻合aiohttp框架的需求
+
+[思路看这里](https://hk4fun.github.io/2017/10/09/%E5%BB%96%E9%9B%AA%E5%B3%B0web%E5%AE%9E%E6%88%98%E6%80%BB%E7%BB%93/)
+[代码思路看这里](https://github.com/zhouxinkai/awesome-python3-webapp/blob/master/www/app.py)
+
+
+#### 5.response_factory
+
+对应的响应对象response的处理工序流水线先后依次是:
+由handler构造出要返回的具体对象
+然后在这个返回的对象上加上'__method__'和'__route__'属性，以标识别这个对象并使接下来的程序容易处理
+RequestHandler目的就是从请求对象request的请求content中获取必要的参数，调用URL处理函数,然后把结果返回给response_factory
+response_factory在拿到经过处理后的对象，经过一系列类型判断，构造出正确web.Response对象，以正确的方式返回给客户端
+
+#### 6.修改app.py的init函数
+
+就只加了这个
+```python
+    init_jinja2(app, filters=dict(datetime=datetime_filter))
+    # 添加URL处理函数, 参数handlers为模块名
+    add_routes(app, 'handlers')
+    # 添加CSS等静态文件路径
+    add_static(app)
+```
+
+这里要注意，handlers是handlers.py这个文件名。并不是函数或者参数，是字符串，文件名。
+扫描所有这个文件里的所有handler函数，并且注册
+
+
+
+#### 7.新建一个handlers.py
+
+我意识到这里新建了这个文件。
+要把index函数因为这是handler函数
+和app.router.add_route('GET', '/', index)这句给删掉。
+因为已经有了add_routes(app, 'handlers')
+
+该怎么做呢？
+
+```python
+from coroweb import get, post
+from models import User
+import asyncio
+from aiohttp import web
+
+@get('/')
+async def index(request):
+    # users = await User.findAll()
+    return web.Response(body=b'<h1>Awesome users</h1>', content_type='text/html', charset='UTF-8')
+```
+
+本来我想测试一下数据库存取，发现了一个错误。
+
+File "C:\Users\thejojo\Desktop\coding\python\廖雪峰\实战\www\orm.py", line 64, in select
+    async with __pool.get() as conn:
+NameError: name '__pool' is not defined
+估计是orm出错了吧。
+
+其实就是因为app没有引入orm，没有引入账号。
+
+![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171104/142007137.png)
+
+
+## Day 6 - 编写配置文件
+
+为了编写配置，这里要新建3个文件
+
+### config_default.py
+
+这里是用字典方式储存的。
+两个key，db 和session
+db存储数据库相关信息
+session是 定义会话cookie密钥
+
+### config_override.py
+
+这个不需要重写其他字段，只是把关键字段覆盖掉就可以了。
+所以只有一个字典里一个db key和host 字段
+
+### config.py-整合config配置的主文件
+
+这里说到要优先从configoverride里读取。
+这里就要写从配置文件读取数据，并且加工整合的主程序。
+
+但是应该给个选项吧？
+这个选项在哪里写？
+是在app？
+
+### config.py-merge函数
+
+这是用来融合覆盖配置的函数。
+新建一个空字典，而不修改任何其他配置
+这里采用了一个递归。
+因为有可能配置有好几层递归。
+但是无论怎么样，最终目的，是
+要给r[k]一层层赋值。
+
+如果override里没有k，那么就直接写入。
+如果override里有k，那么再查k的v是不是字典。
+如果不是字典，那就是说就是值，override[k]直接覆盖r[k]。
+如果是字典，那么说明是进一步的字典。
+递归参数为v和override[k]
+
+### config.py- toDict函数和Dict类
+
+这是要将内建字典转换成自定义字典类型
+
+判断逻辑和merge函数一模一样，
+如果是字典，就继续递归，如果不是那么就经过处理重新保存
+主要功能是添加一种取值方式a_dict.key，相当于a_dict['key']，这个功能不是必要的
+
+有点不明白的是zip(names, values)
+
+[需要看这里](https://stackoverflow.com/questions/209840/map-two-lists-into-a-dictionary-in-python)
+
+这里参数是这样的
+
+```python
+keys = ('name', 'age', 'food')
+values = ('Monty', 42, 'spam')
+# 变成这样
+dict = {'name' : 'Monty', 'age' : 42, 'food' : 'spam'}
+```
+
+toDict函数本身不改变原来的dict的数据和结构。
+但是toDict函数新建了一个Dict类的D变量。
+这个Dict类，用了getattr 和setattr 添加了一个a.b = c
+的用法。
+
+等于是一个洗点+加了一个功能。
+
+```python
+dict转换成Dict后可以这么读取配置：configs.db.host就能读到host的值。
+当然configs[db][host]也可以读到
+
+loop.run_until_complete(orm.create_pool(loop, user=configs.db.user, password=configs.db.password, db=configs.db.db))
+
+```
+
+
+不过我不明白，这个toDict函数什么时候会被调用呢？
 

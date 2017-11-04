@@ -15,9 +15,9 @@ async def test():
     await orm.create_pool(loop=loop, host='localhost', port=3306,
         user='root', password='password', db='awesome')
     print('test')
-    # user = User(name='tes', email='test7aasssa3ss5537@test.com', passwd='test', image='about:ddblank')
+    user = User(name='tes', email='test7aasssa3ss5537@test.com', passwd='test', image='about:ddblank')
     # print(user)
-    # await user.save()
+    await user.save()
     r = await User.find('11')
     print(r)
     r = await User.findAll()
