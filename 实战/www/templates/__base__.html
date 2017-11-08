@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% block meta %}<!-- block meta 以后用来搞rss  -->{% endblock %}
+    <title>{% block title %} ? {% endblock %} - Awesome Python Webapp</title>
+    <script src="/static/js/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    {% block beforehead %}<!-- before head  -->{% endblock %}
+</head>
+<body>
+
+<div id="app">
+
+
+    <el-container>
+        <el-header>
+
+            <el-menu
+                    :default-active="activeIndex2"
+                    class="el-menu-demo"
+                    mode="horizontal"
+                    @select="handleSelect"
+                    background-color="#545c64"
+                    text-color="#fff"
+                    active-text-color="#ffd04b">
+                <el-row >
+                    <el-col :span="10">
+                        <el-submenu index="1">
+                            <template slot="title">这是测试的折叠</template>
+                            <el-menu-item index="2-1">选项1</el-menu-item>
+                            <el-menu-item index="2-2">选项2</el-menu-item>
+                            <el-menu-item index="2-3">选项3</el-menu-item>
+                        </el-submenu>
+                        <el-menu-item index="2">Awesome</el-menu-item>
+                        <el-menu-item index="3"><a href="https://www.ele.me" target="_blank">日志</a></el-menu-item>
+                        <el-menu-item index="4"><a href="https://www.ele.me" target="_blank">教程</a></el-menu-item>
+                        <el-menu-item index="5"><a href="https://www.ele.me" target="_blank">源码</a></el-menu-item>
+                    </el-col>
+                    <el-col :span="4" :offset="8">
+                        <!--<div id="login">-->
+                        {% if users %}
+                        <el-menu-item index="6"><a href="/" target="_blank">
+                            {{ users[0].name }}</a></el-menu-item>
+                        <el-menu-item index="7"><a href="/" target="_blank">登出</a>
+                        </el-menu-item>
+                        {% else %}
+                        <el-menu-item index="6"><a href="/" target="_blank">注册</a>
+                        </el-menu-item>
+                        <el-menu-item index="7"><a href="/" target="_blank">登陆</a>
+                        </el-menu-item>
+                        {% endif %}
+                        <!--</div>-->
+                    </el-col>
+                </el-row>
+            </el-menu>
+        </el-header>
+
+        <el-main>
+            {% block content %}
+            {% endblock %}
+        </el-main>
+
+
+        <el-footer>
+
+
+            <el-col :span="12" :offset="6">
+                <p>Powered by <a href="http://awesome.liaoxuefeng.com">Awesome Python Webapp</a>. Copyright &copy; 2014.
+                    [<a href="/manage/" target="_blank">Manage</a>]</p>
+                <p><a href="http://www.liaoxuefeng.com/" target="_blank">www.liaoxuefeng.com</a>. All rights reserved.
+                </p>
+            </el-col>
+
+
+        </el-footer>
+
+
+    </el-container>
+
+
+</div>
+
+
+</body>
+<!-- JavaScript 代码需要放在尾部（指定的HTML元素之后） -->
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+//            message: '页面加载于 ' + new Date().toLocaleString(),
+//            visible: false,
+            activeIndex2: '1'
+        },
+        methods: {
+            show: function () {
+                this.visible = true;
+            },
+            handleSelect(key, keyPath) {
+                console.log(key, keyPath);
+            }
+        }
+    });
+</script>
+
+</html>

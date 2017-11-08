@@ -1,0 +1,116 @@
+
+html, body {
+    margin: 0;
+    height: 100%;
+}
+
+.el-container {
+    height: 100%;
+}
+
+.el-header {
+    /*display: flex;*/
+    /*width:auto;*/
+    /*height:auto;*/
+    background-color: #545c64;
+    color: #333;
+    text-align: center;
+    line-height: 60px;
+}
+
+.el-footer {
+    display: flex;
+    /*height: 200px;*/
+    background-color: #545c64;
+    text-align: center;
+    height: auto !important;
+    line-height: 60px;
+
+}
+
+#app {
+    height: 100%;
+}
+
+#articlelist {
+    width: 80%;
+    background-color: aquamarine;
+    height: 100%;
+    overflow: auto;
+    /*margin-right: 20%;*/
+}
+
+.article {
+    border-bottom: black 1px solid;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin: 20px;
+    width: calc(100% - 70px);
+    height: 300px;
+    background-color: chartreuse;
+    /*overflow: auto;*/
+    padding-left: 30px;
+    padding-top: -30px;
+}
+
+.article a {
+    height: 20%;
+    margin-top: -50px;
+    font-size: 20px;
+}
+
+.article h5 {
+    font-size: 10px;
+    height: 20%;
+    margin-top: -30px;
+}
+
+.article p {
+    height: 50%;
+    overflow: hidden;
+    /*height: 200px;*/
+    /*margin-top: -80px;*/
+    line-height: 30px;
+}
+
+.articlemore {
+    /*height: 30px;*/
+    /*font-size: 15px;*/
+    /*margin-bottom: 7%;*/
+}
+
+.el-main {
+    display: flex;
+    flex: 1;
+    background-color: #E9EEF3;
+    color: #333;
+    /*text-align: center;*/
+    line-height: 160px;
+}
+
+#asidelist {
+    height: 100%;
+    width: 20%;
+    background-color: #E9EEF3;
+    overflow: auto;
+    padding: 20px;
+}
+
+#asidelist span {
+    margin-top: -50px;
+    height: 30px;
+    width: 100%;
+}
+
+#asidelist ul {
+    margin-top: -100px;
+}
+
+#asidelist ul li {
+    font-size: 15px;
+    height: 30px;
+    width: 100%;
+}
+
+

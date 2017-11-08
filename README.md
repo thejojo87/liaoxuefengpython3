@@ -1553,6 +1553,243 @@ async def index(request):
 不过我之前用过bootstrap，还用过vuejs。
 我在想我有必要还用uikit吗？
 
+因为使用了jinja2来渲染。
+html本身就用了jinja2 的模板来写的。
+然后jinja2来渲染进去。
+不过这个语法会不会和vue冲突？
+
+我甚至都觉得jinja2 都没必要。
+
+先看一看别人怎么写的吧。
+
+### 下载uikit
+
+```python
+static/
++- css/
+|  +- addons/
+|  |  +- uikit.addons.min.css
+|  |  +- uikit.almost-flat.addons.min.css
+|  |  +- uikit.gradient.addons.min.css
+|  +- awesome.css
+|  +- uikit.almost-flat.addons.min.css
+|  +- uikit.gradient.addons.min.css
+|  +- uikit.min.css
++- fonts/
+|  +- fontawesome-webfont.eot
+|  +- fontawesome-webfont.ttf
+|  +- fontawesome-webfont.woff
+|  +- FontAwesome.otf
++- js/
+   +- awesome.js
+   +- html5.js
+   +- jquery.min.js
+   +- uikit.min.js
+```
+
+可以看到3个文件夹，还下载了jquery
+自己写了awesome的css和js
+
+### jinja2 的模板
+
+jinja2 写一个父模板，然后定义block。
+然后写很多block替换进去。
+感觉vuejs也能做呀。
+
+```python
+---父亲模板
+{% block title%} 这里定义了一个名为title的block {% endblock %}
+
+
+---子模板
+{% extends 'base.html' %}
+
+{% block title %} A {% endblock %}
+```
+
+### __base__.html 父亲模板
+
+头部：
+jialeyige block meta块，说是rss，为以后做准备。
+title也加了个  block title beforehead（这是用来插入js的）
+然后加了uikit，jquery，的css和js文件
+
+body：
+navbar
+navbar里有a链接，li，日志，教程，源码，
+还有个用户名和登出，
+登陆和注册
+
+
+中间是block content
+
+尾部是固定的数据
+
+![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171105/013537036.png)
+
+
+我先试一下加入vuejs
+
+我从官网下载，然后在base的head引用了。
+
+遇到了个问题。
+我以前写的时候是webpack，新建一个vue项目。
+然后直接开始写vue文件。
+最后webpack自动编译成html，js，css文件。
+我现在想使用在htm文件里，该怎么做？
+
+还是说，我用webstrom新建一个vue项目，然后编译，
+最后使用dist文件夹里的内容？
+[vue怎么在服务器部署](https://www.zhihu.com/question/46630687)
+
+
+还是说，我在html上引用js，js里写上vue的语法就行了？
+这个企图失败了。
+
+还是说，我记得body上面可以引用script，直接在这里写逻辑？
+貌似这个也不可以，不知道为什么。
+有没有可能是jinja2和vuejs 解释变量都在{{}}里冲突的原因？
+
+果然是如此，所以我按照
+[解决Jinja2与Vue.js的模板冲突](https://jpanj.com/2016/%E8%A7%A3%E5%86%B3jinja2%E4%B8%8EVue-js%E7%9A%84%E6%A8%A1%E6%9D%BF%E5%86%B2%E7%AA%81/)
+[多个方案](https://segmentfault.com/q/1010000007035319)
+
+按照这个方案，设置了jinja的开始和启动加了个空格，就出来了。
+
+或者说，添加下面[这个方案](https://stackoverflow.com/questions/41082626/how-to-render-by-vue-instead-of-jinja)，表明jinja2 不渲染这个。
+
+```python
+{% raw %}{{task.body|e}}{% endraw %}
+```
+
+
+但是经过实验，另外写了个test的js，引入，貌似失败了。
+不知道为什么。
+我在想总不能以后都这样吧？
+
+各个文件之间如何传送数据呢？
+
+base的body里直接写上了 nav条
+
+这里我要用iview吗？还是element？
+
+我想先使用element
+
+[element文档](http://element-cn.eleme.io/#/zh-CN/component/installation)
+
+需要引入cdn。
+一个css和一个js
+
+发现了一个问题。
+为什么element里的效果默认的时候不显示呢？
+比如加了个按钮。
+点击才启动。
+貌似要把css和script放在head部分才可以。
+
+正式开始编写前端
+
+这里分了3个部分。
+nav，和bottom 写在了base里，中间留下content。
+
+引入了element的布局组件。
+新建了一个css来引入。
+
+navbar里有a链接，
+li，日志，教程，源码，
+还有个用户名和登出，
+登陆和注册
+
+用户名和登出，登陆和注册是放在右边的。
+一股脑放在左边太难看了。
+这个应该是layout来设置。
+用了offset发现当浏览器窗口变小的时候，注册和登陆就会转移到下一楼。
+我想要达到的效果是，当窗口变小，两者之间的距离会变小，而不是下一层。
+发现我对element的layout认识有各种错误。
+
+最后在el-menu里面设置了两个el-col结束了。
+第二个设置了offset
+
+用jinja的语法 if users else endif 并不会和vue冲突。
+
+因为handler源代码里是users。所以这里如果想显示，
+那么就要users[0].name才可以。
+
+下面就是Main部分
+
+```python
+        <el-main>
+            {% block content %}
+            {% endblock %}
+        </el-main>
+```
+
+最后footer部分
+
+3个部分
+一个是p，4个图标一排
+第二个是p，copy right
+第三个p，网页链接
+第四个是一个大的html图标
+
+第一个问题是间部分的高度并没有充满整个屏幕高度
+
+发现是这个缺少高度。
+
+el-container 这个高度设置为100%
+而且html和body高度也为100%
+
+
+下一个问题是，footer的内容不随着填充，footer的大小不变化。
+
+发现footer的高度被element.style设置为60px了。
+我受用了auto!important 强制修改了
+
+图标就不加了吧。怪丑的。
+
+### 继承一个blogs.html
+
+只需要把content 部分block 重写就可以了。
+
+分为两个部分，一个是文章，另一个是友情链接
+
+#### 文章
+
+文章部分只显示部分内容，还有个read more。
+read more，我是想打开一个新连接呢？
+还是想折叠显示呢？
+
+如果是折叠，那么就用element的collapse折叠面板
+
+如果想打开一个新连接，那么应该显示代码块，后面加一个read more链接。
+
+还是用一个打开新连接吧。
+
+首先把content分为两块。
+左边分割为70%，文章部分
+overflow: auto;
+这个属性至关重要，要不然文章部分，往下拉的时候背景颜色不会改变。
+height不会改变。
+
+真是费劲。
+因为css我忘光了。
+所以弄得很费劲。
+
+#### 友情链接
+
+![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171108/181303093.png)
+
+源代码是用了ul li来做的。
+但是我想试一下不同的代码。
+比如用element的card功能
+发现效果不好。
+
+## Day 9 - 编写API
+
+
+
+
+
+
 
 
 
