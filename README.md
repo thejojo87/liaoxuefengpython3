@@ -1783,7 +1783,51 @@ height不会改变。
 比如用element的card功能
 发现效果不好。
 
+#### 总结
+
+
+
 ## Day 9 - 编写API
+
+http://localhost:9000/blog/123 这是用户阅读的信息。
+机器需要的是json格式的数据集。
+http://localhost:9000/api/blogs/123
+
+一个API也是一个URL的处理函数，我们希望能直接通过一个@api来把函数变成JSON格式的REST API
+
+这里注册api是通过@get('/api/users')这个装饰器来做的。
+
+```python
+@get('/api/users')
+def api_get_users(*, page='1'):
+    page_index = get_page_index(page)
+    num = yield from User.findNumber('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, users=())
+    users = yield from User.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
+    for u in users:
+        u.passwd = '******'
+    return dict(page=p, users=users)
+```
+
+只要返回一个dict，后续的response这个middleware就可以把结果序列化为JSON并返回。
+
+这里需要制作一个api装饰器。
+还需要一个APIError(这个以后再完善吧，还没看懂)
+
+不过实际源代码很简单。
+在handler里添加了api
+
+```python
+@get('/api/users')
+async def api_get_users():
+    users = await User.findAll(orderBy='created_at desc')
+    for u in users:
+        u.passwd = '********'
+    return dict(users=users)
+```
+
 
 
 
