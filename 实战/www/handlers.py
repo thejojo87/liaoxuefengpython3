@@ -31,6 +31,33 @@ COOKIE_NAME = 'awesession'
 _COOKIE_KEY = configs.session.secret
 
 
+# 解密cookie:
+async def cookie2user(cookie_str):
+    '''
+    Parse cookie and load user if cookie is valid.
+    '''
+    if not cookie_str:
+        return None
+    try:
+        L = cookie_str.split('-')
+        if len(L) != 3:
+            return None
+        uid, expires, sha1 = L
+        if int(expires) < time.time():
+            return None
+        user = await User.find(uid)
+        if user is None:
+            return None
+        s = '%s-%s-%s-%s' % (uid, user.passwd, expires, _COOKIE_KEY)
+        if sha1 != hashlib.sha1(s.encode('utf-8')).hexdigest():
+            logging.info('invalid sha1')
+            return None
+        user.passwd = '******'
+        return user
+    except Exception as e:
+        logging.exception(e)
+        return None
+
 # 根据用户信息拼接一个cookie字符串
 
 
@@ -67,6 +94,51 @@ async def api_get_users():
         u.passwd = '********'
     return dict(users=users)
 
+# 用户退出
+@get('/logout')
+def logout(request):
+    referer = request.headers.get('Referer')
+    r = web.HTTPFound(referer or '/')
+    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
+    logging.info('user signed out.')
+    return r
+
+
+# 用户登陆
+@get('/login')
+async def login():
+    return {
+        '__template__': 'login.html'
+    }
+
+# 用户登陆postlogin
+@post('/api/checkLogin')
+async def checkLogin(*, name, passwd):
+    users = await User.findAll('name=?', [name])
+    if len(users) == 0:
+        raise APIValueError('username', '用户名不存在')
+    user = users[0]
+    # check passwd:
+    # 按存储密码的方式获取出请求传入的密码字段的sha1值
+    sha1 = hashlib.sha1()
+    sha1.update(user.id.encode('utf-8'))
+    sha1.update(b':')
+    sha1.update(passwd.encode('utf-8'))
+    # 和库里的密码字段的值作比较，一样的话认证成功，不一样的话，认证失败
+    if user.passwd != sha1.hexdigest():
+        raise APIValueError('passwd', '用户名和密码不符')
+    # 构建返回信息
+    r = web.Response()
+    # 添加cookie
+    r.set_cookie(COOKIE_NAME, user2cookie(
+        user, 86400), max_age=86400, httponly=True)
+    # 只把要返回的实例的密码改成'******'，库里的密码依然是正确的，以保证真实的密码不会因返回而暴漏
+    user.passwd = '******'
+    # 返回的是json数据，所以设置content-type为json的
+    r.content_type = 'application/json'
+    # 把对象转换成json格式返回
+    r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
+    return r
 
 # 用户注册
 @get('/register')
@@ -85,14 +157,6 @@ async def register_check_same_item(*, item, searchValue):
 # 用户注册的信息发送给数据库
 @post('/api/users')
 async def api_register_user(*, email, name, passwd):
-    # 源代码检测名字为空，或者email格式为空，显然没意义。
-    # ——REEmail是正则用来判断格式的，没必要所以我没写。
-    # if not name or not name.strip():
-    #     raise APIValueError('name')
-    # if not email or not _RE_EMAIL.match(email):
-    #     raise APIValueError('email')
-    # if not passwd or not _RE_SHA1.match(passwd):
-    #     raise APIValueError('passwd')
     uid = next_id()
     sha1_passwd = '%s:%s' % (uid, passwd)
 

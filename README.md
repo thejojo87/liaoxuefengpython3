@@ -2068,9 +2068,108 @@ return r
 ```
 
 
+### 登陆
+
+登陆有两种主流方式，session和cookie
+
+session就是数据存储在服务器。
+cookie就是本地，储存唯一码，发送给服务器的session一对比，服务器就
+知道是你了。
+cookie一般用在自动登录。
+
+由于session在用户关闭浏览器后，会话结束，就会消失，cookie随之应该也会消失。但servlet的API中提供了一些方法，可以让客户端的cookie存活的时间更久一点。这就是cookie相对于session的一大优势所在。
+
+[知乎关于session和cookie](https://www.zhihu.com/question/19786827)
+
+[简书里的文章](http://www.jianshu.com/p/25802021be63)
+
+[很好的文章](http://mertensming.github.io/2016/10/19/cookie-session/)
+
+
+廖雪峰的教程没用session，只用了cookie，算了，也可以吧。
+只是cookie加密的方式。
+
+#### 登陆的api-handler函数
+
+很简单，都不值一提。
+不过需要注意的事情是，函数名字，其实是用来add_router用的。
+把网址和函数给捆绑。
+不过之前写了程序，就自动从handlers文件里扫描添加了初始化了。
+所以这个函数名现在其实用不着。
+
+```python
+# 用户登陆
+@get('/login')
+async def login():
+    return {
+        '__template__': 'login.html'
+    }
+```
 
 
 
+#### 登陆界面-login.html
+
+登陆界面 html部分和注册界面没什么区别。
+
+有一个细节，登陆失败有两种可能性。
+一个是用户不存在，另一个是密码出错。
+我如果设置为用户不存在，自动检测，会不会给服务器增加负担呢？
+
+我该怎么选择呢？想想没必要，还是提交后后台判定吧。
+
+#### 登陆处理api-post login
+
+也没什么需要解释的。
+就是sha1的生成记着就行了。
+
+处理函数的功能就是检测用户名和密码的正确。
+使用sha1，检测。
+然后返回cookie，
+在这里生成一个response，这里设置cookie，然后发送给浏览器的方式
+已经设置好了cookie
+
+
+sha1算法说明看这里
+
+[Day 10的梳理](http://blog.csdn.net/JosephPai/article/details/76418190)
+
+但是这仅仅是验证密码，然后生成cookie呀。
+然后该怎么做呢？
+怎么写入到本地浏览器呢？
+
+服务器又是如何拿到cookie，确定用户登录呢？
+
+是不是每一个网页要求，都要查找cookie？判断有效性？
+
+服务器如果每次和浏览器打交道要解密cookie的话太麻烦了。
+
+所以利用middle在处理URL之前，把cookie解析出来。
+并且把这个cookie里的登陆用户绑定到request对象上，这样以后的url处理函数
+就可以直接拿到登录用户。
+
+这里需要写两个函数，一个是app里，写一个auth_factory
+另一个是揭秘cookie -cookie2user -放在handler里
+
+这里有个问题，我突然发现廖雪峰的源代码有个没讲解，没解释的。
+工厂函数data_factory
+关于这个到底有什么用,我还看不明白。
+集中处理request数据格（POST：’application/json’、’application/x-www-form-urlencoded’、’multipart/form-data’）
+
+先记一下
+
+[data_factory 1](http://blog.csdn.net/qq_38801354/article/details/73008111)
+
+[data_factory 2](https://www.liaoxuefeng.com/discuss/001409195742008d822b26cf3de46aea14f2b7378a1ba91000/001462893855750f848630bb19c43c582fdff90f58cbee0000)
+
+做了这些之后，网站并不能显示出用户名。
+原因是在app的response_factory里，r，少了r__user__赋值的过程。
+所以__user__为0
+
+#### 退出
+
+这个就很简单了。直接设置个logout链接。
+用get在handler里设置函数，把cookie清空就可以了。
 
 
 

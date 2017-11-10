@@ -39,6 +39,7 @@
 
 </div>
 
+
 {% endblock %}
 
 {% block vueblock %}
@@ -164,7 +165,7 @@
                         axios.post('/api/users', {
                             'name': this.registerForm.userName,
                             'email': this.registerForm.email,
-                            'passwd': CryptoJS.SHA1(this.registerForm.email + ':' + this.registerForm.pwd).toString()
+                            'passwd': CryptoJS.SHA1(this.registerForm.userName + ':' + this.registerForm.pwd).toString()
                         })
                             .then(function (response) {
                                 // 这里要分析response

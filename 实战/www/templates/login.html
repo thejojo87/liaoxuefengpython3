@@ -1,0 +1,199 @@
+{% extends '__base__.html' %}
+
+{% block title %}登陆{% endblock %}
+<!--引入注册的js文件-->
+{% block beforehead %}
+<link rel="stylesheet" href="/static/css/login.css">
+<script src="/static/js/sha1.min.js"></script>
+{% endblock %}
+
+<!--注册的页面-->
+{% block content %}
+<div id="login">
+    <span id="login_title">用户登陆</span>
+    <el-form :model="loginForm" status-icon :rules="loginRule"
+             ref="loginForm" :label-position="left" size="medium" label-width="120px" class="loginForm">
+        <!--第一个用户名-->
+        <el-form-item label="用户名" prop="userName">
+            <el-input v-model="loginForm.userName" placeholder="用户名"></el-input>
+        </el-form-item>
+        <!--第二个邮箱-->
+        <!--<el-form-item label="邮箱" prop="email">-->
+            <!--<el-input v-model="registerForm.email" placeholder="请输入接收验证码的邮箱"></el-input>-->
+        <!--</el-form-item>-->
+        <!--第二个密码-->
+        <el-form-item label="密码" prop="pwd">
+            <el-input v-model="loginForm.pwd" placeholder="密码" type="password"></el-input>
+        </el-form-item>
+
+
+        <el-form-item>
+            <el-button type="primary" @click="submitForm('loginForm')" class="submitBtn">登陆</el-button>
+            <el-button type="info" @click="resetForm('loginForm')" class="resetForm">重置</el-button>
+        </el-form-item>
+
+    </el-form>
+
+</div>
+
+
+{% endblock %}
+
+{% block vueblock %}
+<script>
+    let vm = new Vue({
+        el: '#app',
+        data() {
+            let validateUser = (rule, value, callBack) => {
+                let pattern = /^[\w\u4e00-\u9fa5]{3,10}$/g
+                if (value === '') {
+                    callBack(new Error('用户名不能为空'))
+                } else if (!pattern.test(value)) {
+                    callBack(new Error('请输入3-10个字母/汉字/数字/下划线'))
+                } else {
+                    callBack()
+                }
+            };
+            let validatePwd = (rule, value, callBack) => {
+                let pattern = /^\S{3,20}$/g
+                if (value === '') {
+                    callBack(new Error('密码不能为空'))
+                } else if (!pattern.test(value)) {
+                    callBack(new Error('请输入3-20个非空白字符'))
+                } else {
+                    callBack()
+                }
+            };
+//            let SameEmailCheck = (rule, value, callBack) => {
+//                // 用api检查重复
+//                // 也可以通过 params 对象传递参数
+//                axios.get('/register/checkSameItem', {
+//                    params: {
+//                        item: 'email',
+//                        searchValue: value
+//                    }
+//                })
+//                    .then(function (response) {
+//                        console.log(response);
+//                        // 这里要分析response
+//                        // 如果成功输入，那么通知后返回
+//                        if (!response.data.data) {
+//                            // 表示正确存入
+//                            callBack()
+//                        } else {
+//                            callBack(new Error('邮箱已经存在'))
+//                        }
+//                        console.log(response)
+//                    })
+//                    .catch(function (error) {
+//                        vm.netError();
+//                        consol.log(error)
+//                    });
+//            };
+//            let SameNameCheck = (rule, value, callBack) => {
+//                // 用api检查重复
+//                // 也可以通过 params 对象传递参数
+//                axios.get('/register/checkSameItem', {
+//                    params: {
+//                        item: 'name',
+//                        searchValue: value
+//                    }
+//                })
+//                    .then(function (response) {
+//                        console.log(response);
+//                        // 这里要分析response
+//                        // 如果成功输入，那么通知后返回
+//                        if (!response.data.data) {
+//                            // 表示正确存入
+//                            callBack()
+//                        } else {
+//                            callBack(new Error('用户名已经存在'))
+//                        }
+//                        console.log(response)
+//                    })
+//                    .catch(function (error) {
+//                        vm.netError();
+//                        consol.log(error)
+//                    });
+//            };
+            return {
+                loginForm: {
+                    userName: '',
+//                    email: '',
+                    pwd: ''
+                },
+                loginRule: {
+                    userName: [
+                        {required: true, validator: validateUser, trigger: 'blur'}
+//                        {required: true, validator: SameNameCheck, trigger: 'blur'}
+                    ],
+                    pwd: [
+                        {required: true, validator: validatePwd, trigger: 'blur'}
+                    ]
+                }
+            }
+        },
+        methods: {
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+//                  开始登陆验证
+                        axios.post('/api/checkLogin', {
+                            'name': this.loginForm.userName,
+                            'passwd': CryptoJS.SHA1(this.loginForm.userName + ':' + this.loginForm.pwd).toString()
+                        })
+                            .then(function (response) {
+                                // 这里要分析response
+                                // 如果成功输入，那么通知后返回
+                                if (!response.data.data) {
+                                    // 表示正确存入
+                                    vm.loginSuccess()
+                                } else {
+                                    vm.loginFail(response.data.message)
+                                }
+                                console.log(response)
+                            })
+                            .catch(function (error) {
+//                            这里因为是网络问题，所以需要提示
+                                vm.netError();
+                                consol.log(error)
+                            });
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    }
+                });
+            },
+            resetForm(formName) {
+                this.$refs[formName].resetFields();
+            },
+            netError() {
+                this.$alert('网络出现了一点问题，请重新提交', '注册失败', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                    }
+                });
+            },
+            loginSuccess() {
+                this.$alert('登陆成功，转到主页', '登陆成功', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                        location.assign('/');
+                    }
+                });
+            },
+            loginFail(value) {
+                // 这里要区分，是因为用户名不存在，还是密码出错
+                this.$alert('登陆失败，' + value, '登陆失败', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                    }
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

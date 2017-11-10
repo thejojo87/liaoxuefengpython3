@@ -42,15 +42,15 @@
                     </el-col>
                     <el-col :span="4" :offset="8">
                         <!--<div id="login">-->
-                        {% if users %}
-                        <el-menu-item index="6"><a href="/" target="_blank">
-                            {{ users[0].name }}</a></el-menu-item>
-                        <el-menu-item index="7"><a href="/" target="_blank">登出</a>
+                        {% if __user__ %}
+                        <el-menu-item index="6"><a href="/" target="">
+                            {{ __user__.name }}</a></el-menu-item>
+                        <el-menu-item index="7"><a href="/logout" target="">登出</a>
                         </el-menu-item>
                         {% else %}
-                        <el-menu-item index="6"><a href="/register" target="_blank">注册</a>
+                        <el-menu-item index="6"><a href="/register" target="">注册</a>
                         </el-menu-item>
-                        <el-menu-item index="7"><a href="/" target="_blank">登陆</a>
+                        <el-menu-item index="7"><a href="/login" target="">登陆</a>
                         </el-menu-item>
                         {% endif %}
                         <!--</div>-->

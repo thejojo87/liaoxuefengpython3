@@ -14,6 +14,7 @@ import json, time
 import os
 from coroweb import add_routes, add_static
 import orm
+from handlers import cookie2user, COOKIE_NAME
 
 # init函数只运行一次，然后每次网络请求的时候另外一个协程调用create——server
 async def init(loop):
@@ -21,7 +22,7 @@ async def init(loop):
         user='root', password='password', db='awesome')
     # 获取程序中的EventLoop，初始化，设置路由
     app = web.Application(loop=loop, middlewares=[
-        logger_factory, response_factory
+        logger_factory, auth_factory, response_factory
     ])
     # app.router.add_route('GET', '/', index)
     init_jinja2(app, filters=dict(datetime=datetime_filter))
@@ -74,6 +75,29 @@ def datetime_filter(t):
 
 # 工厂函数
 
+# 用这个解析cookie，拿到用户信息，绑定到request上
+
+
+async def auth_factory(app, handler):
+    async def auth(request):
+        logging.info('check user: %s %s' % (request.method, request.path))
+        request.__user__ = None
+        # 获取到cookie字符串
+        cookie_str = request.cookies.get(COOKIE_NAME)
+        if cookie_str:
+            # 通过反向解析字符串和与数据库对比获取出user
+            user = await cookie2user(cookie_str)
+            if user:
+                logging.info('set current user: %s' % user.email)
+                # user存在则绑定到request上，说明当前用户是合法的
+                request.__user__ = user
+        if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+            return web.HTTPFound('/signin')
+        # 执行下一步
+        return (await handler(request))
+    return auth
+
+
 # logging来记录URL日志
 async def logger_factory(app,handler):#协程，两个参数
     async def logger_middleware(request):#协程，request作为参数
@@ -105,6 +129,7 @@ async def response_factory(app, handler):
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
+                r['__user__'] = request.__user__  # 添加这一行
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp
