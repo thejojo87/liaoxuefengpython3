@@ -11,3 +11,12 @@ class APIError(Exception):
         self.data = data
         self.message = message
 
+class APIValueError(APIError):
+    '''
+    表示输入的input error或者不符合要求。
+    '''
+    def __init__(self, field, message=''):
+        super(APIValueError, self).__init__('value:invalid', field, message)
+
+
+

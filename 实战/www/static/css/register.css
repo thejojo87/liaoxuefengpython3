@@ -1,0 +1,17 @@
+/*注册表格，放在中间吧*/
+#register {
+    /*height: 100%;*/
+    width: 600px;
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+    margin-top: 0;
+    justify-content: flex-start;
+}
+#register_title {
+    font-size: 20px;
+    text-align: center;
+    /*height: 30px;*/
+    /*margin: 0;*/
+    /*padding: 0;*/
+}

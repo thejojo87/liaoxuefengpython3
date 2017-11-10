@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
     <link rel="stylesheet" href="/static/css/base.css">
     <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     {% block beforehead %}<!-- before head  -->{% endblock %}
 </head>
 <body>
@@ -26,7 +27,7 @@
                     background-color="#545c64"
                     text-color="#fff"
                     active-text-color="#ffd04b">
-                <el-row >
+                <el-row>
                     <el-col :span="10">
                         <el-submenu index="1">
                             <template slot="title">这是测试的折叠</template>
@@ -47,7 +48,7 @@
                         <el-menu-item index="7"><a href="/" target="_blank">登出</a>
                         </el-menu-item>
                         {% else %}
-                        <el-menu-item index="6"><a href="/" target="_blank">注册</a>
+                        <el-menu-item index="6"><a href="/register" target="_blank">注册</a>
                         </el-menu-item>
                         <el-menu-item index="7"><a href="/" target="_blank">登陆</a>
                         </el-menu-item>
@@ -86,6 +87,7 @@
 
 </body>
 <!-- JavaScript 代码需要放在尾部（指定的HTML元素之后） -->
+{% block vueblock %}
 <script>
     new Vue({
         el: '#app',
@@ -95,14 +97,13 @@
             activeIndex2: '1'
         },
         methods: {
-            show: function () {
-                this.visible = true;
-            },
             handleSelect(key, keyPath) {
                 console.log(key, keyPath);
             }
         }
     });
 </script>
+
+{% endblock %}
 
 </html>

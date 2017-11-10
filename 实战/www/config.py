@@ -2,17 +2,11 @@
 # -*- coding: utf-8 -*-
 # Created by thejojo at 2017/11/4
 
-import config_default.configs
+import config_default
 
-configs = config_default.configs
 
-# 将内建字典转换成自定义字典类型
-def toDict(d):
-    D = Dict()
-    for k, v in d.items():
-        # 字典某项value仍是字典的,则将value的字典也转换成自定义字典类型
-        D[k] = toDict(v) if isinstance(v, dict) else v
-    return D
+
+
 
 # 自定义字典
 class Dict(dict):
@@ -37,13 +31,12 @@ class Dict(dict):
         self[key] = value
 
 
-
 # 用override覆盖掉default
 def merge(default, override):
     r = {}
     for k,v in default.items():
         # kv在override里存在，需要合并
-        if k in override.keys():
+        if k in override:
             # isinstance是用来判断v是否是dict类型的
             # 这里拿来default的v拿来做判断，
             # 因为default和override字段形式都是一样的。
@@ -59,6 +52,17 @@ def merge(default, override):
         # 意味着这个kv是default独有的，就直接赋值
         else:
             r[k] = v
+    return r
+
+# 将内建字典转换成自定义字典类型
+def toDict(d):
+    D = Dict()
+    for k, v in d.items():
+        # 字典某项value仍是字典的,则将value的字典也转换成自定义字典类型
+        D[k] = toDict(v) if isinstance(v, dict) else v
+    return D
+
+configs = config_default.configs
 
 try:
     import config_override
@@ -66,3 +70,4 @@ try:
 except ImportError:
     pass
 
+configs = toDict(configs)

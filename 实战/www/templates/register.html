@@ -1,0 +1,222 @@
+{% extends '__base__.html' %}
+
+{% block title %}注册{% endblock %}
+<!--引入注册的js文件-->
+{% block beforehead %}
+<link rel="stylesheet" href="/static/css/register.css">
+<script src="/static/js/sha1.min.js"></script>
+{% endblock %}
+
+<!--注册的页面-->
+{% block content %}
+<div id="register">
+    <span id="register_title">新用户注册</span>
+    <el-form :model="registerForm" status-icon :rules="registerRule"
+             ref="registerForm" :label-position="left" size="medium" label-width="120px" class="registerForm">
+        <!--第一个用户名-->
+        <el-form-item label="用户名" prop="userName">
+            <el-input v-model="registerForm.userName" placeholder="账号"></el-input>
+        </el-form-item>
+        <!--第二个邮箱-->
+        <el-form-item label="邮箱" prop="email">
+            <el-input v-model="registerForm.email" placeholder="请输入接收验证码的邮箱"></el-input>
+        </el-form-item>
+        <!--第二个密码-->
+        <el-form-item label="输入密码" prop="pwd">
+            <el-input v-model="registerForm.pwd" placeholder="密码" type="password"></el-input>
+        </el-form-item>
+        <!--密码重复输入-->
+        <el-form-item label="重复输入密码" prop="checkPwd">
+            <el-input v-model="registerForm.checkPwd" placeholder="请再次输入密码" type="password"></el-input>
+        </el-form-item>
+
+        <el-form-item>
+            <el-button type="primary" @click="submitForm('registerForm')" class="submitBtn">立即注册</el-button>
+            <el-button type="info" @click="resetForm('registerForm')" class="resetForm">重置</el-button>
+        </el-form-item>
+
+    </el-form>
+
+</div>
+
+{% endblock %}
+
+{% block vueblock %}
+<script>
+    let vm = new Vue({
+        el: '#app',
+        data() {
+            let validateUser = (rule, value, callBack) => {
+                let pattern = /^[\w\u4e00-\u9fa5]{3,10}$/g
+                if (value === '') {
+                    callBack(new Error('请输入用户名'))
+                } else if (!pattern.test(value)) {
+                    callBack(new Error('请输入3-10个字母/汉字/数字/下划线'))
+                } else {
+                    callBack()
+                }
+            };
+            let validatePwd = (rule, value, callBack) => {
+                let pattern = /^\S{3,20}$/g
+                if (value === '') {
+                    callBack(new Error('请输入密码'))
+                } else if (!pattern.test(value)) {
+                    callBack(new Error('请输入3-20个非空白字符'))
+                } else {
+                    if (this.registerForm.checkPwd !== '') {
+                        this.$refs.registerForm.validateField('checkPwd')
+                    }
+                    callBack()
+                }
+            };
+            let validateCheckPwd = (rule, value, callBack) => {
+                if (value === '') {
+                    callBack(new Error('请再次输入密码'))
+                } else if (value !== this.registerForm.pwd) {
+                    callBack(new Error('两次输入密码不一致!'))
+                } else {
+                    callBack()
+                }
+            };
+            let SameEmailCheck = (rule, value, callBack) => {
+                // 用api检查重复
+                // 也可以通过 params 对象传递参数
+                axios.get('/register/checkSameItem', {
+                    params: {
+                        item: 'email',
+                        searchValue: value
+                    }
+                })
+                    .then(function (response) {
+                        console.log(response);
+                        // 这里要分析response
+                        // 如果成功输入，那么通知后返回
+                        if (!response.data.data) {
+                            // 表示正确存入
+                            callBack()
+                        } else {
+                            callBack(new Error('邮箱已经存在'))
+                        }
+                        console.log(response)
+                    })
+                    .catch(function (error) {
+                        vm.netError();
+                        consol.log(error)
+                    });
+            };
+            let SameNameCheck = (rule, value, callBack) => {
+                // 用api检查重复
+                // 也可以通过 params 对象传递参数
+                axios.get('/register/checkSameItem', {
+                    params: {
+                        item: 'name',
+                        searchValue: value
+                    }
+                })
+                    .then(function (response) {
+                        console.log(response);
+                        // 这里要分析response
+                        // 如果成功输入，那么通知后返回
+                        if (!response.data.data) {
+                            // 表示正确存入
+                            callBack()
+                        } else {
+                            callBack(new Error('用户名已经存在'))
+                        }
+                        console.log(response)
+                    })
+                    .catch(function (error) {
+                        vm.netError();
+                        consol.log(error)
+                    });
+            };
+            return {
+                registerForm: {
+                    userName: '',
+                    email: '',
+                    pwd: '',
+                    checkPwd: ''
+                },
+                registerRule: {
+                    userName: [
+                        {required: true, validator: validateUser, trigger: 'blur'},
+                        {required: true, validator: SameNameCheck, trigger: 'blur'}
+                    ],
+                    pwd: [
+                        {required: true, validator: validatePwd, trigger: 'blur'}
+                    ],
+                    checkPwd: [
+                        {required: true, validator: validateCheckPwd, trigger: 'blur'}
+                    ],
+                    email: [
+                        {required: true, message: '请输入邮箱地址', trigger: 'blur'},
+                        {type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur,change'},
+                        {required: true, validator: SameEmailCheck, trigger: 'blur'}
+                    ]
+                }
+            }
+        },
+        methods: {
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+//                  开始验证
+                        axios.post('/api/users', {
+                            'name': this.registerForm.userName,
+                            'email': this.registerForm.email,
+                            'passwd': CryptoJS.SHA1(this.registerForm.email + ':' + this.registerForm.pwd).toString()
+                        })
+                            .then(function (response) {
+                                // 这里要分析response
+                                // 如果成功输入，那么通知后返回
+                                if (!response.data.data) {
+                                    // 表示正确存入
+                                    vm.registerSuccess()
+                                } else {
+                                    vm.registerFail(response.data.data)
+                                }
+                                console.log(response)
+                            })
+                            .catch(function (error) {
+//                            这里因为是网络问题，所以需要提示
+                                vm.netError();
+                                consol.log(error)
+                            });
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    }
+                });
+            },
+            resetForm(formName) {
+                this.$refs[formName].resetFields();
+            },
+            netError() {
+                this.$alert('网络出现了一点问题，请重新提交', '注册失败', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                    }
+                });
+            },
+            registerSuccess() {
+                this.$alert('注册成功，转到主页', '注册成功', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                        location.assign('/');
+                    }
+                });
+            },
+            registerFail(value) {
+                this.$alert('注册失败，' + value + '已经存在', '注册失败', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                        // 这个是回调，可有可无。
+                    }
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

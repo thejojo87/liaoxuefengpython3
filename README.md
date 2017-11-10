@@ -1828,6 +1828,246 @@ async def api_get_users():
     return dict(users=users)
 ```
 
+## Day 10 - 用户注册和登录
+Todo: 要做用户名重复检测
+
+### 注册
+
+
+需要一个注册的handler api和注册的页面
+
+先写api吧
+
+首先完善apis.py文件里apierror部分
+
+```python
+class APIValueError(APIError):
+    '''
+    表示输入的input error或者不符合要求。
+    '''
+    def __init__(self, field, message=''):
+        super(APIValueError, self).__init__('value:invalid', field, message)
+      
+```
+
+这里不太明白field是干什么用的
+
+然后写register的api
+
+```python
+# 用户注册
+@get('/register')
+async def register():
+    return {
+        '__template__': 'register.html'
+    }
+```
+
+register的html
+
+我突然意识到，既然用vue，那么用axios就可以实现后端的数据交互啊
+
+而且vue的数据双向绑定的话，我没必要用js来判定字符串合法性啊。
+
+不过这个界面的vue脚本该放在哪里呢？
+会不会和base里body下面的那个冲突？
+base下面已经初始化了一个vue 虽然什么也没做。
+因为如果每一个页面的vue代码都写在base里，太麻烦了。
+但是如果缺少了这个，那么element就无法挂着。
+
+我试着在register里，用一个新的element 生成一个vue实例。
+发现没反应。
+
+是否是因为已经绑定了#app呢？
+果然没有错，我把base里的#app注释掉后，register里的就能用了。
+我现在陷入了一个矛盾中。
+app必须要生成一个vue，要不然header，footer无法运行。
+但是绑定到app就意味着，其他界面无法绑定。
+
+在这里其实可以做到什么呢
+不用element，不用vue做base。
+然后每一个界面都独自生成一个vue。
+
+但是这样做的话，用纯css来制作footer和header和main，太麻烦了。
+
+或者说我可以把#app当作block。
+每一次转到其他界面的时候，我都要重新创建一个#app的vue。
+这个做法感觉方便一些。
+先这么试试吧。
+
+其实用bootstrap制作一个header和footer也不是很麻烦。
+
+#### register.html
+
+首先用element的表单
+model是要绑定的表单名字吧。
+status-icon 是bool型，是否在输入框中显示校验结果反馈图标
+rules是规则，要在下面写，是个字典
+ref是什么？是表格名字，
+
+表单验证项是el-from-item
+label是表单的说明文字，prop是属性，用来在rule里检查的。
+
+输入框是el-input
+type是类型， 输入密码什么的
+
+v-model-绑定数据
+auto-complete -开或者关
+
+规则验证里，有一个trigger，一直没想到这是什么
+有change和blur选项。就是个触发器
+
+
+[element表单说明](http://likaiqiang.site/2017/03/22/element-ui%E4%B8%AD%E7%9A%84%E8%A1%A8%E5%8D%95%E9%AA%8C%E8%AF%81/)
+
+首先registerForm设置了model，
+rules链接到registerRule
+
+在el-form-item里用了prop绑定了registerRule里的userName
+
+设计完了html和验证之后，就该设计如何跟数据库写入了。
+
+这个是通过restfulapi实现的。
+首先新建一个post的api，注册的。
+然后通过js代码，把json格式的数据给发送过去。
+
+
+这里submit之前自行判断了有效格式。
+比如说trim()函数用来去掉空格，然后验证是否为空什么的。
+虽然自己写也不是个坏事，但是验证，直接在element的表格里集成，显然更方便。
+
+用户重复能否在这里解决掉？
+可以新建一个validateUsername的函数，这个用restfulapi来搞。
+然后在用户名和email添加这个检测方法
+
+我先试一下廖雪峰在这里的代码方式。
+其实可以有另外一个解决办法。
+别人的代码集成了一个help文件，从api进行验证，并且返回。
+
+在这个地方有一个廖雪峰自定义的一个函数。
+就是postJSON。
+这个被封装在awesome.js文件里。
+
+既然这样，我能不能用其他第三方库来做ajax呢？
+比如axios
+
+使用了cdn，添加到了base里。
+
+不过我在想，现在除了注册，还有登陆，还有很多很多，肯定要用到axios的
+如果不封装，或者不单独放到一个代码，那么实在是太烦人了。
+
+我可以参考这里的代码
+
+[代码很好](https://github.com/HZNU-QUANTA/NODE-HQY/blob/master/Vue-Test/src/lib/vueHelper.js)
+
+我如何得到表格里的数据呢？
+this.registerForm.userName就可以了。
+虽然我完全不知道原理。
+this貌似是整个window，然后表格-字段。
+
+下面遇到要sha1加密的问题。
+这个是使用了一个加密库，我使用了cdn
+[CryptoJS CDN](<script src="https://cdn.bootcss.com/crypto-js/3.1.9/sha1.js"></script>)
+
+实在不行的话，sha1文件下载下来，本地引用也行啊。
+
+然后发现已经成功写入了。
+然后重复邮箱也发现能检测下来。
+
+但是依然遇到个问题。
+就是response返回的是字典。
+axioscatch的错误是自身的传输错误。
+而，重命名邮箱，并没有显示能让axio捕捉到的错误。
+而是通过一个字典，返回来，结果被当成成功了。
+
+我如何能区分呢？
+两个方向：
+1. 弄清楚axios能捕捉什么样的错误。
+2. 在成功里判断字段，if else 解决掉。
+
+1. 好像是我把服务器关掉后，post失败的时候能捕捉。
+要改写这里，需要返回网络错误提示
+
+错误提示要用什么呢？
+消息提示？弹框？通知？
+感觉弹框比较合适。
+
+实际写代码的时候发现问题。
+我无法找到vue里面的方法该如何启动呢？
+我在submitform里，想要调用其他msg方法。
+这个可以用this.open()就可以了。
+但是经过验证，并且axios后this就不是之前的this了。
+
+[答案看这里](https://segmentfault.com/q/1010000004939460)
+在这里找到答案。
+我还是对vue不熟悉。
+需要好好学习。
+
+下面就是改写重复name逻辑了。
+思路是：
+data里新建一个sameUser函数。
+这里rule实在没啥用，value，callback就行了。
+新建一个api，check email和name有没有重复。
+api是要用get呢？还是post呢？
+我感觉不用提交数据库所以应该是get
+但是要传送两个参数，一个是value，一个是item-email或者name
+
+email和name能否写在一个函数里？
+理论上有可能，但是涉及到箭头函数，我失败了。
+以后再说吧。
+到此为止，注册部分已经完成。
+剩下的就是登陆做好后，把注册成功后变成登陆成功。
+
+#### post的用户注册api
+
+这里一开始就判断接收道德参数是否为空，显然毫无意义呀。
+下一步就是用接收的email，在数据库上查询。
+如果查到那么就挂起APIError。
+挂起的话，会如何呢？
+弹窗？
+还是提示？
+这个需要实验一下。
+再说了，这个重复检测，我觉得完全可以在register界面做呀。
+
+下一步生成一个当前用户注册的唯一uid，
+然后生成sha1——passwd
+
+下一步创建一个用户，密码是通过sha1加密保存
+
+然后保存这个用户到数据库用户表
+
+最后返回一个用户信息。
+这里涉及到cookie，这个需要仔细了解。
+
+
+
+
+```python
+@post('/api/users')
+def api_register_user(*, email, name, passwd):
+    if not name or not name.strip():
+        raise APIValueError('name')
+    if not email or not _RE_EMAIL.match(email):
+        raise APIValueError('email')
+    if not passwd or not _RE_SHA1.match(passwd):
+        raise APIValueError('passwd')
+    users = yield from User.findAll('email=?', [email])
+    if len(users) > 0:
+        raise APIError('register:failed', 'email', 'Email is already in use.')
+    uid = next_id()
+    sha1_passwd = '%s:%s' % (uid, passwd)
+    user = User(id=uid, name=name.strip(), email=email, passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(), image='http://www.gravatar.com/avatar/%s?d=mm&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
+    yield from user.save()
+    # make session cookie:
+    r = web.Response()
+    r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
+    user.passwd = '******'
+    r.content_type = 'application/json'
+    r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
+return r
+```
+
+
 
 
 
