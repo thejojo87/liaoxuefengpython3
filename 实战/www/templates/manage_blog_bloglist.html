@@ -1,0 +1,49 @@
+<div class="home-wrap">
+    <a href="/" class="go-home">
+        <!--<i class="fa fa-home" aria-hidden="true">-->
+        <!--</i>-->
+        <span>回首页</span>
+    </a>
+</div>
+
+<div id="new-note" v-on:click="create_blog">
+    <a href="" data-action="create-note" class="new-note-link">
+        <!--<i class="icon fa fa-plus-circle"></i>-->
+        <span class="win-text">新建文章
+            <!--<img src="" class="hide cnlt loader-tiny">-->
+        </span>
+    </a>
+</div>
+
+
+<el-popover
+        ref="listSetting"
+        placement="top-start"
+        title="标题"
+        width="200"
+        trigger="hover"
+        content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+</el-popover>
+
+
+<ul class="blog-list">
+    <div v-for="(blog, index) in {{ blogs }}">
+
+        <li id="blog-item" v-bind:class="{activeBlogList: index==activeListIndex}"
+            v-on:click="setActiveList(index,{{ blogs }})">
+            <a href="javascript:void(0)" data-type="active" class="blog-name">
+                <span>{{blog.name}}--{{index}}</span>
+            </a>
+            <el-popover
+  placement="bottom"
+  width="100"
+  trigger="click">
+  <span id="delete_blog" @click="delete_blog">删除文章</span>
+  <i slot="reference" class="el-icon-setting" v-show="index===activeListIndex"></i>
+</el-popover>
+
+        </li>
+
+
+    </div>
+</ul>

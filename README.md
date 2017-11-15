@@ -2172,6 +2172,530 @@ sha1算法说明看这里
 用get在handler里设置函数，把cookie清空就可以了。
 
 
+## Day 11 - 编写日志创建页
+
+今天就做一个界面，编写blog
+廖雪峰制作的是个人博客，而不是多人博客。
+所以api里，个人身份是无法新建博客的。
+界面应该也是看不到的。
+
+![mark](http://oc2aktkyz.bkt.clouddn.com/markdown/20171111/231925079.png)
+
+### 新建blog的api
+
+很简单，post api/blogs 
+都是用restful api来操作的。
+接收参数，判断是否为管理员，是否为空什么的，然后新建一个Blog的实例。
+save就好了。
+
+这里和以前的api不同的是，第一个参数是request
+而且把检测管理员给分离出来了。
+
+至于路由函数，
+get/manage/blogs/create
+这里发送了一个id为空的字段和action为/api/blogs的字段。
+这是要干嘛？我没看懂。
+如果访问新建blog的界面，发送这两个字段是要干嘛？
+
+
+### 新建blog的html
+
+这里我要写文章的按钮，要放在哪里呢？
+
+登陆成功后，在账户左面就有
+
+我在basehtml里写上了。但是依然有个问题，
+这么一来所有用户都能看到写文章的链接了。
+我需要判断用户是否为管理员。
+
+发现request.__user__这里包括了所有的数据。
+
+进入了写博客的界面。
+我非常喜欢简书的风格。
+之前vue的项目是用了vue-router来组件化的。
+写作界面分为好几个vue文件。
+
+我如果想在这里这么做的话。
+是否要多个html文件继承呢？
+里面的数据该怎么解决呢？
+如果说我按照Django的做法，一个界面有着所有的程序。
+我点击书的目录的时候，等于操作了一个数据库，进行了一个操作。
+那我文章目录也应该相应作出反应才可以。
+这个数据我需要保存到数据库码？还是变化的时候才保存呢？
+
+这里就有个问题了，我可以用restfulapi，post一个当前数据到数据库。
+
+但是页面不刷新，我如何更新数据库获取的数据到文章等数据呢？
+
+如果一个vue内，我还能重新接收数据来更新。
+跨组件能做到一样的事情吗？
+
+难道非要我，从一个vue，发送修改信号到数据库
+
+或者说其实网址确实是变化了，只不过模板部分变化了？
+
+一个template，继承了base，还需要继承另一个template怎么办呢？
+
+或者说用list就能解决吗？
+
+假设a继承于base，b继承与a。
+那么b会表现什么呢？
+
+总之没有我想的那么简单。
+
+前后端的分离是什么意思？
+[说明](https://www.bbsmax.com/A/ke5jmA2mJr/)
+
+前后端协作是什么意思呢？
+
+[Django和VUe协作项目](https://cloud.tencent.com/community/article/774449)
+
+说到底，我还是不懂，如何在django这样的模板系统里，结合vue
+
+局部动态刷新应该怎么做？
+
+
+简书里，notebooks是不变的。
+如果点击文章，那么会添加notes/12784884
+这部分。
+
+我怎么觉得这个光靠django做不到呢？
+django是整个页面刷新不是吗？
+
+还是说因为刷新速度太快，感觉不出来而已？
+像这里说明一样
+[局部刷新segmentfault说明](https://segmentfault.com/q/1010000005663229)
+
+我需要重新创建一个模板
+模板只有一个content部分。
+里面的数据该如何获取呢？
+是用handler直接传呢？
+还是开始后用vue的js用api来获取呢？
+
+而且我意识到我还需要修改model，因为没有books这个选项。
+
+我到底该怎么做呢？
+
+就设计两个页面
+一个事文章列表部分，另一个是具体文章编辑页面。
+
+要不要分离呢？
+我觉得是有必要分离的，因为哪怕现在用不到，但是以后一定会用到的。
+
+提前用这个简单的办法来测试。
+
+#### 文章列表部分
+
+发现不对劲。
+我如果写一个列表部分。
+写一个文章部分。
+再写一个edit的html
+再写一个基本的base的html
+我该如何组合这一切？
+
+数据流我想要的是。
+
+##### 页面继承关系
+
+[多层继承](http://blog.csdn.net/Super_Tiger_Lee/article/details/77855673)
+
+base-> edit <-(list和writer)
+
+我意识到我应该这么写
+
+base -> (list) ->edit(writer)
+或者writer写在list里面。
+
+或者说base里就写上list
+base(list) ->edit(writer)
+
+或者
+base ->(list)->(writer)->edit
+
+但是关键问题是edit只能继承一个文件。
+
+或者说有个include？
+原来如此。
+用include就可以包括了，而不是继承。
+
+还有个super用来保持父元素。
+
+那么应该是
+base (extends)->edit <-(include)list,writer
+
+##### 获取blog的数据
+
+首先要获取blogs的list数据。
+这个数据有几种方式获取。
+首先我可以从handlers里，route的api里获取并且传送。
+jinja2 如何给include里传递数据呢？
+
+看官方的jinja2 文档，说jinja2.1开始variable能自动传过去。
+[jinja2官方文档](http://jinja.pocoo.org/docs/2.10/templates/#import-visibility)
+
+我先试一下这个方式：
+首先在handlers里，路由传送blogs
+
+发现是可以的。
+
+handlerapi
+
+```python
+# 获取新建blog界面
+@get('/manage/blogs/create')
+async def manage_create_blog():
+    blogs = await Blog.findAll(orderBy='created_at desc')
+    return {
+        '__template__': 'manage_blog_edit.html',
+        'id': '',
+        'action': '/api/blogs',
+        'blogs': blogs
+    }
+```
+
+base文件-把container，aside，main放在这里。
+aside和main各有一个block
+
+```html
+<body>
+
+<div id="app">
+    <el-container>
+        <el-aside>
+{% block sidebar %}
+{% endblock %}
+        </el-aside>
+
+        <el-main>
+{% block mainbar %}
+{% endblock %}
+        </el-main>
+    </el-container>
+</div>
+</body>
+```
+
+edit文件html。两个block-sidebar和mainbar
+但是具体要写在list文件里，所以用了一个include
+
+
+```html
+{% block sidebar %}
+{% include "manage_blog_bloglist.html" %}
+{% endblock %}
+
+{% block mainbar %}
+{% endblock %}
+
+```
+
+再来就是列表的html了.
+sidebar要把blogs给列表展示出来，所以用了一个for循环。
+
+```html
+{% for blog in blogs %}
+    <h1>{{ blog.name }}</h1>
+    <h1>{{ blog.id }}</h1>
+{% endfor %}
+```
+
+第二个方式是直接用vue的方式，生成后，直接启动restfulapi，获取blogs列表渲染。
+因为第一个方式很好用第二个方式不考虑了。
+要不然还得写一个api，还得写一个axios需求。
+
+##### vue-写界面
+
+这里又遇到了个问题。
+
+include只是直接把html粘贴过去。
+无法在这里初始化vue。
+只不过把这个当成html的代码块罢了。
+那么vue应该直接在edit界面直接写下全部逻辑对吗？
+
+base里的vue有没有什么可以做的？
+貌似没有。
+
+先写一个返回首页的按钮吧。
+
+重要的是inlign-height-20px决定了按钮
+a链接的text-decoration none 把按钮下面的下划线给去掉了。
+
+下一步我是该做文集呢？还是做文章列表就可以了呢？
+
+我其实很犹豫，因为我并不是想要用这个来完成我自己的网站。
+我上次用vuejs，已经完成了很大一部分。
+我是否在这里直接进行完美的样子呢？
+
+现在handler已经存在，框架也已经完成。
+以后剩下的事情，就只有编写api，编写界面而已了。
+
+决定不写books了。
+只有一个list，和文章页面，但是依然选择使用markdown编辑器。
+api做到edit界面全部集成。
+简书根本没有什么blogs列表之类的还需要跳转的东西。
+编辑和管理全部都在一个界面完成。
+
+返回首页按钮下面就是新建文章按钮
+css怎么写我已经忘光了。异常艰难。
+新建文章，我包裹在了一个div里，明明宽度，高度都是100%
+但是hover 只渲染中间的a部分
+
+还有一个问题就是，如何给一个div添加vue的方法呢？
+v-on:click就可以了
+
+新建文章按钮，按下去，就该发生什么事情呢？
+下面列表更新一个list
+右边写作界面换一个
+网址转换过去
+数据库生成一个blog实例。
+
+网址的变化分析。
+首先进入写文章之后的网址是一个writer的网址
+默认为第一个书，第一个文章。
+
+点击新建文章的话，会转到notebooks/309848/notes/90809543
+
+对于这里来说应该是notes/9808394
+会转到这里来。
+
+这个时候应该是要经过路由处理的。
+页面继承manage_blog_edit。
+
+应该是点击文章创建按钮后，启动一个方法。
+这个方法使用restfulapi，创建一个blog。
+并且返回这个blog的id
+
+然后页面转到新建blog的界面
+类似于 这样
+
+```python
+@get('/blog/{id}')
+def get_blog(id):
+```
+
+
+1. 先把新建文章div和vue的一个方法联系起来
+v-on:click="create_blog"
+
+2. 写一个api，post blogs-新建一个blog对象并且返回
+
+```python
+# 管理员新建blog文章
+@post('/api/blogs')
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)
+    if not name or not name.strip():
+        raise APIValueError('name', 'name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary', 'summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'content cannot be empty.')
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image,
+                name=name.strip(), summary=summary.strip(), content=content.strip())
+    await blog.save()
+    return blog
+```
+
+3. 新建文章的方法调用axios-上面2的方法创建一个blog并返回获取blog的id
+
+但是因为创建blogs是写这名字，summary和content都为空才创建的。
+有必要检测吗？
+我觉得没有必要，直接取消这个判断。只保留一个管理员来判断非法创建就好了。
+
+4. 新建一个get blog/{id}的api
+
+而且我在这里还有遇到另一个问题。
+因为list里blog我是从create这个api获取来的。
+这个没办法继承。
+所以我需要重新获取，并且渲染。
+不过我在想，这样是不是每次都太浪费了？
+难道就不能有个全局变量储存吗？
+
+没办法。那就再传过来数据好了。
+发现表现和我想的一模一样。
+
+```python
+# 在create的界面获取blog
+@get('/manage/blogs/create/blog/{id}')
+async def manage_get_blog(id):
+    blog = await Blog.find(id)
+    blogs = await Blog.findAll(orderBy='created_at desc')
+    return {
+        '__template__': 'manage_blog_createblog.html',
+        'blog': blog,
+        'blogs': blogs
+    }
+```
+
+5. 编写继承了manage_blog_edit的一个新的html
+
+在这里有个问题。
+
+我需要所有新建文章在内的vue脚本。
+但是我同时需要添加其他vue部分。
+我是否应该在edit文件里写完全部vue脚本呢？
+
+
+6. 修改list的css
+
+- [x] list的active设置
+ 
+```html
+    <div v-for="(blog, index) in {{ blogs }}">
+
+    <li id="blog-item" v-bind:class="{activeBlogList: index==activeListIndex}"
+        v-on:click="activeListIndex=index">
+        <a href="javascript:void(0)" data-type="active" class="blog-name">
+            <span>{{blog.name}}--{{index}}</span>
+        </a>
+        <i class="el-icon-setting" v-if="index===activeListIndex"></i>
+    </li>
+
+    </div>
+```
+
+7. 设置activelist的设置弹窗
+
+这里element的popover不知道为什么没有反应。
+最后找到了popover的slot用法解决了。
+
+[这里](https://github.com/QingWei-Li/element/commit/9260e771c14425bfce5bcac3f07d5622b9393c15)
+
+
+8. 写删除方法
+删除方法是用的messagebox
+不过和Dialog对话框有什么区别呢？
+总觉得没什么区别。
+MessageBox 的作用是美化系统自带的 alert、confirm 和 prompt，因此适合展示较为简单的内容。如果需要弹出较为复杂的内容，请使用 Dialog。
+
+我是只要确认删除。所以用messagebox就可以了。
+
+```html
+        <li id="blog-item" v-bind:class="{activeBlogList: index==activeListIndex}"
+            v-on:click="activeListIndex=index">
+            <a href="javascript:void(0)" data-type="active" class="blog-name">
+                <span>{{blog.name}}--{{index}}</span>
+            </a>
+            <el-popover
+                    placement="bottom"
+                    width="100"
+                    trigger="click">
+                <span id="delete_blog" @click="delete_blog">删除文章</span>
+                <i slot="reference" class="el-icon-setting" v-show="index===activeListIndex"></i>
+            </el-popover>
+
+        </li>
+```
+
+因为messagebox只不过是美化了浏览器自带的alert元素。
+所以开销很小。
+
+这里有一个bug，就是popover第一次点击的时候会一闪而过。
+这个我查看了github，前几天才修复，估计需要下一个版本才能修复吧。
+[bug](https://github.com/ElemeFE/element/pull/8188)
+
+
+```python
+            delete_blog() {
+                this.$confirm('此操作将永久删除该文章, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+//                    这里要进行axios进行api操作
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+            },
+```
+
+9. 写deleteblog的api
+
+```python
+# 删除blog
+@get('/api/blogs/{id}/delete')
+async def api_delete_blog(request, *, id):
+    check_admin(request)
+    blog = await Blog.find(id)
+    await blog.remove()
+    
+    return dict(id=id)
+
+```
+
+10. 完善vue里删除的方法
+
+
+不过返回来的数据都有些什么呢？
+第一个检查是是否为管理员。
+我先查看非管理员信息吧。
+
+第二个就是确定删除后应该返回什么数据？blog的id？
+第三个就是网络错误该怎么显示？
+
+还有一个问题，我需要获取blog的id。get过去才可以。
+
+activeListIndex 这个在之前点击blog列表的时候就设置为了index
+我需要储存这个blogid
+
+
+把这个传送过去就可以了。
+
+@get('/api/blogs/{id}/delete')
+我该如何请求这个呢？
+
+我试过这个。
+
+```python
+axios.get('/api/blogs/{id}/delete', {
+                    'id': this.activeListIndex
+                })
+```
+发现参数id并不能传送过去。
+貌似还是需要拼接网址
+
+```python
+//                    这里要进行axios进行api操作
+                    axios.get('/api/blogs/' + this.activeListId + '/delete', {
+//                    'id': this.activeListIndex
+                })
+```
+
+而且修改了click方法。让click的时候，不光设置index，还要获取index的blog的id
+
+```python
+            setActiveList(index, blogs) {
+                this.activeListIndex = index
+                this.activeListId = blogs[index].id
+            },
+            
+            v-on:click="setActiveList(index,{{ blogs }})">
+```
+
+在这里我遇到了个问题。
+当我删除文章之后文章的activeindex该怎么设置？
+我想直接刷新到createblog的网页，默认又是第一个blog为active
+
+不过总之删除方法做完了。
+
+就是每一个操作都刷新一边网页。速度简直慢得不要不要的。
+简书是如何做到秒切换的？
+
+
+#### 文章编辑界面
+
+这里应该有一个是文章标题界面。
+还有一个是文章summary界面。（可有可无）
+还有个textarea界面
+
+
 
 
 

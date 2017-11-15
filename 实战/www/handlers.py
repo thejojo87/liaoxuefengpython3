@@ -9,7 +9,7 @@ from models import User, Blog, Comment, next_id
 import asyncio
 from aiohttp import web
 import time
-from apis import APIValueError, APIError
+from apis import APIValueError, APIError, APIPermissionError
 import hashlib
 import logging
 from config import configs
@@ -30,6 +30,10 @@ import json
 COOKIE_NAME = 'awesession'
 _COOKIE_KEY = configs.session.secret
 
+# 检测request是否是管理员
+def check_admin(request):
+    if request.__user__ is None or not request.__user__.admin:
+        raise APIPermissionError()
 
 # 解密cookie:
 async def cookie2user(cookie_str):
@@ -80,6 +84,9 @@ async def index(request):
         Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
         Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
     ]
+    # for blog in blogs:
+    #     blog.save()
+    # Blog(id='1', name='Test Blog', summary=summary, created_at=time.time() - 120).save()
     # users = None
     # return web.Response(body=b'<h1>Awesome users</h1>', content_type='text/html', charset='UTF-8')
     return {
@@ -179,5 +186,63 @@ async def api_register_user(*, email, name, passwd):
     # 把对象转换成json格式返回
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
 
-
     return r
+
+# -------------blog 管理------------------------
+# 获取新建blog界面
+@get('/manage/blogs/create')
+async def manage_create_blog():
+    blogs = await Blog.findAll(orderBy='created_at desc')
+    return {
+        '__template__': 'manage_blog_edit.html',
+        'id': '',
+        'action': '/api/blogs',
+        'blogs': blogs
+    }
+
+# 管理员新建blog文章
+@post('/api/blogs')
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)
+    # if not name or not name.strip():
+    #     raise APIValueError('name', 'name cannot be empty.')
+    # if not summary or not summary.strip():
+    #     raise APIValueError('summary', 'summary cannot be empty.')
+    # if not content or not content.strip():
+    #     raise APIValueError('content', 'content cannot be empty.')
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image,
+                name=name.strip(), summary=summary.strip(), content=content.strip())
+    await blog.save()
+    return blog
+
+# 在create的界面获取blog
+@get('/manage/blogs/create/blog/{id}')
+async def manage_get_blog(id):
+    blog = await Blog.find(id)
+    blogs = await Blog.findAll(orderBy='created_at desc')
+    return {
+        '__template__': 'manage_blog_createblog.html',
+        'blog': blog,
+        'blogs': blogs
+    }
+
+# 删除blog
+@get('/api/blogs/{id}/delete')
+async def api_delete_blog(request, *, id):
+    check_admin(request)
+    logging.info('这里要显示测试id')
+    logging.info(id)
+    logging.info('这里要显示测试id')
+    blog = await Blog.find(id)
+    await blog.remove()
+
+    return dict(id=id)
+
+
+
+
+
+
+
+
+

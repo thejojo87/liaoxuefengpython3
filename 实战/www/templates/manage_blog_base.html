@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% block meta %}<!-- block meta 以后用来搞rss  -->{% endblock %}
+    <title>{% block title %}{% endblock %} - Awesome Python Webapp</title>
+    <script src="/static/js/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    {% block beforehead %}<!-- before head  -->{% endblock %}
+</head>
+<body>
+
+<div id="app">
+    <el-container>
+
+        <el-aside>
+{% block sidebar %}
+{% endblock %}
+        </el-aside>
+
+
+        <el-main>
+{% block mainbar %}
+{% endblock %}
+        </el-main>
+
+
+    </el-container>
+</div>
+
+
+</body>
+<!-- JavaScript 代码需要放在尾部（指定的HTML元素之后） -->
+{% block vueblock %}
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+//            message: '页面加载于 ' + new Date().toLocaleString(),
+//            visible: false,
+            activeIndex2: '1'
+        },
+        methods: {
+            handleSelect(key, keyPath) {
+                console.log(key, keyPath);
+            }
+        }
+    });
+</script>
+
+{% endblock %}
+
+</html>

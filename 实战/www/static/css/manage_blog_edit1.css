@@ -1,0 +1,127 @@
+html, body {
+    margin: 0;
+    height: 100%;
+}
+
+.el-container {
+    height: 100%;
+}
+
+#app {
+    height: 100%;
+}
+
+.el-aside {
+    width: 400px !important;
+    background-color: #3f3f3f;
+    color: whitesmoke;
+    text-align: center;
+    line-height: 200px;
+}
+
+/*list部分*/
+
+.home-wrap {
+    line-height: 20px;
+    padding: 30px 19px 5px 18px;
+    text-align: center;
+}
+
+.home-wrap .go-home {
+    padding: 9px 0;
+    font-size: 15px;
+    color: #ec7259;
+    border: 1px solid rgba(236, 114, 89, 0.7);
+    border-radius: 20px;
+    display: block;
+}
+
+.home-wrap a, #new-note a {
+    text-decoration: none;
+}
+
+.home-wrap i {
+    display: none;
+    margin-right: 5px;
+    font-size: 20px;
+    vertical-align: middle;
+}
+
+.home-wrap span {
+    vertical-align: middle;
+}
+
+#new-note {
+    line-height: 100px;
+    background-color: #545c64;
+}
+
+#new-note:hover {
+    background-color: red;
+    border-bottom: 1px solid #ec7259;
+}
+
+.new-note-link {
+    color: #E9EEF3;
+    font-size: 25px;
+    width: 200px;
+    height: 250px;
+}
+
+.blog-list {
+    /*text-decoration: none;*/
+    font-size: 15px;
+    font-weight: normal;
+    line-height: 20px;
+    padding-left: 15px;
+    padding-right: 15px;
+    margin-bottom: 0;
+}
+
+#blog-item {
+    display: flex;
+    justify-content: space-between;
+    text-align: justify;
+    height: 40px;
+    line-height: 27px;
+    list-style-type: none
+}
+
+.activeBlogList {
+    background-color: #545c64;
+}
+
+#blog-item:hover {
+    width: 100%;
+    height: 100%;
+    background-color: #545c64;
+}
+
+#blog-item a {
+    width: 20em;
+    overflow: hidden; /*超出长度的文字隐藏*/
+    text-overflow: ellipsis; /*文字隐藏以后添加省略号*/
+    white-space: nowrap; /*强制不换行*/
+    color: #E9EEF3;
+    text-decoration: none;
+}
+
+.blog-name {
+    position: relative;
+    height: 34px;
+    line-height: 2.3;
+    text-shadow: none;
+    color: whitesmoke;
+    border-left: 3px solid transparent;
+}
+
+.el-icon-setting {
+    margin-top: 6px;
+    font-size: 25px;
+    /*text-align: justify;*/
+}
+#delete_blog {
+    width: 100%;
+    text-align: center;
+    display: block;
+}
